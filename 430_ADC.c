@@ -48,6 +48,32 @@ __interrupt void ADC_ISR(void)
   ADC_clearInterrupt(ADC_BASE, ADC_COMPLETED_INTERRUPT);
 }
 
+//void PWM_setUp()
+//{
+//   P1DIR |= BIT7+BIT6;  //set pin as output 
+//   P1SEL0 |= BIT7+BIT6; //P1.7 TA0.1, P1.6 TA0.2, Timer TA0 CCR1 capture: CCI1A input, compare: Out1 outputs PWM1
+//   
+////   TA0CCR0 = 0x0800;   //2048  8hz
+////   TA0CCR1 = 0x0700;   // duty period=1/16?
+//   TA0CCTL1= OUTMOD_3;  //TA0.1 set (TACCR1) / reset (TACCR0)
+//   TA0CCTL2= OUTMOD_3;  //TA0.2
+//   TA0CCR0= 20;  //PWM period
+//   TA0CCR1= 5;   //PWM Duty Cycle
+////   TA0CCR0= PWMprd;     //period of PWM = PWMprd/ACLK =(max/frequency)
+////   TA0CCR1= PWMduty;    //high level output time of PWM1 = Duty Cycle * Period; duty cycle= CCR1/CCR0
+////   TA0CCR2= PWMduty;    //                          PWM2     
+
+////   TA0CTL=TASSEL_2+MC_1;//SMCLK (maximum operating frequency 16MHz), up-mode
+//   TA0CTL=TASSEL_1+MC_1;//ACLK (approximately 32 kHz), Up mode: Timer counts up to TAxCCR0                     
+//   TA0CTL|=ID_0;       //00b = /1, 01b = /2, 10b = /4, 11b = /8
+//
+//   TA0CTL |= TACLR;    //Timer_A clear The TACLR bit is automatically reset and always reads as zero
+//   TA0CTL |= TAIE;      //Timer_A interrupt enable.
+//   TA0CCTL0 |= CCIE;
+//   TA0CCTL1 |= CCIE;  //Capture/compare interrupt enable. This bit enables the interrupt request of the corresponding CCIFG flag.
+//
+//}
+
 int main(void)
 {
    ADC_init(ADC_BASE,
@@ -72,6 +98,7 @@ int main(void)
   WDTCTL = WDTPW | WDTHOLD;               // Stop watchdog timer
 
   initialiseLedDial();
+  //PWM_setUp()
 
   // Disable the GPIO power-on default high-impedance mode
   // to activate previously configured port settings
@@ -96,20 +123,12 @@ int main(void)
 
     if (SW1_interruptFlag_==1)
     {
-      dialValue = dialValue * 0x02;
-
-      if(0x00 == dialValue)
-         dialValue = 0x01;
+ 
     }
-
-
     //if(SW1_interruptFlag_==-1)
     else
     {
-      dialValue = dialValue / 0x02;
 
-      if(0x00 == dialValue)
-         dialValue = 0x80;
     }
 
     rate=0.5 + sample/256;
