@@ -175,6 +175,15 @@ int main(void)
   }
 }
 
+void CalInit()
+{
+  PI_N=1;                        //PI_N为PI与载波比的比值180/180
+  PI_25=120;                     //PI*2/3
+  Tc_2=275;                      //TC/(2*2)=110us/4,其计数周期为27.5us/0.1us=275
+  Tc_2m=247;                     //Tc*m/4=Tc_4*m=247
+  N2=N_ts*2;                      
+}
+
 #pragma vector = PORT1_VECTOR
 __interrupt void P1_ISR(void)
 {
