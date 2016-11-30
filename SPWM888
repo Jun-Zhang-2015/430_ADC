@@ -1,0 +1,221 @@
+/**************************************************
+ * 19.496 Project
+ *
+ * Copyright 2015 University of Strathclyde
+ **************************************************/
+#include <msp430.h>
+#include <driverlib.h>
+#include "adc.h"
+
+unsigned int i=0;
+//int sample= 8000;
+unsigned int sine[361]={0,509  ,517  ,526  ,535  ,544  ,552  ,561  ,570  ,578  ,587  ,
+595  ,604  ,612  ,621  ,629  ,638  ,646  ,655  ,663  ,671  ,
+679  ,687  ,695  ,703  ,711  ,719  ,727  ,735  ,742  ,750  ,
+758  ,765  ,772  ,780  ,787  ,794  ,801  ,808  ,815  ,821  ,
+828  ,835  ,841  ,847  ,854  ,860  ,866  ,872  ,877  ,883  ,
+889  ,894  ,899  ,905  ,910  ,915  ,919  ,924  ,929  ,933  ,
+937  ,941  ,946  ,949  ,953  ,957  ,960  ,964  ,967  ,970  ,
+973  ,976  ,978  ,981  ,983  ,985  ,987  ,989  ,991  ,992  ,
+994  ,995  ,996  ,997  ,998  ,999  ,999  ,1000  ,1000  ,1000  ,
+1000  ,1000  ,999  ,999  ,998  ,997  ,996  ,995  ,994  ,992  ,
+991  ,989  ,987  ,985  ,983  ,981  ,978  ,976  ,973  ,970  ,
+967  ,964  ,960  ,957  ,953  ,949  ,946  ,941  ,937  ,933  ,
+929  ,924  ,919  ,915  ,910  ,905  ,899  ,894  ,889  ,883  ,
+877  ,872  ,866  ,860  ,854  ,847  ,841  ,835  ,828  ,821  ,
+815  ,808  ,801  ,794  ,787  ,780  ,772  ,765  ,758  ,750  ,
+742  ,735  ,727  ,719  ,711  ,703  ,695  ,687  ,679  ,671  ,
+663  ,655  ,646  ,638  ,629  ,621  ,612  ,604  ,595  ,587  ,
+578  ,570  ,561  ,552  ,544  ,535  ,526  ,517  ,509  ,500  ,
+491  ,483  ,474  ,465  ,456  ,448  ,439  ,430  ,422  ,413  ,
+405  ,396  ,388  ,379  ,371  ,362  ,354  ,345  ,337  ,329  ,
+321  ,313  ,305  ,297  ,289  ,281  ,273  ,265  ,258  ,250  ,
+242  ,235  ,228  ,220  ,213  ,206  ,199  ,192  ,185  ,179  ,
+172  ,165  ,159  ,153  ,146  ,140  ,134  ,128  ,123  ,117  ,
+111  ,106  ,101  ,95  ,90  ,85  ,81  ,76  ,71  ,67  ,63  ,
+59  ,54  ,51  ,47  ,43  ,40  ,36  ,33  ,30  ,27  ,
+24  ,22  ,19  ,17  ,15  ,13  ,11  ,9  ,8  ,6  ,
+5  ,4  ,3  ,2  ,1  ,1  ,0  ,0  ,0  ,0  ,
+0  ,1  ,1  ,2  ,3  ,4  ,5  ,6  ,8  ,9  ,
+11  ,13  ,15  ,17  ,19  ,22  ,24  ,27  ,30  ,33  ,
+36  ,40  ,43  ,47  ,51  ,54  ,59  ,63  ,67  ,71  ,
+76  ,81  ,85  ,90  ,95  ,101  ,106  ,111  ,117  ,
+123  ,128  ,134  ,140  ,146  ,153  ,159  ,165  ,172  ,179  ,
+185  ,192  ,199  ,206  ,213  ,220  ,228  ,235  ,242  ,250  ,
+258  ,265  ,273  ,281  ,289  ,297  ,305  ,313  ,321  ,329  ,
+337  ,345  ,354  ,362  ,371  ,379  ,388  ,396  ,405  ,413  ,
+422  ,430  ,439  ,448  ,456  ,465  ,474  ,483  ,491  ,500  ,}; 
+
+void PWM_setUp()
+{
+ //TA0.1 TA0.2
+   TA0CTL |= TASSEL_2+MC_1+TACLR;                    //ACLK (approximately 32 kHz), Up mode: Timer counts up to TAxCCR0
+   TA0CCR0=  0x900;                       //2778
+   TA0CCR1=  250;
+ //  TA0CCR2= 750;
+   
+   TA0CCTL1 |= OUTMOD_3+CCIE;                                     //Capture/compare interrupt enable. This bit enables the interrupt request of the corresponding CCIFG flag.
+   TA0CCTL2 |= OUTMOD_3+CCIE;                                                    
+   
+   P1DIR |= BIT7+BIT6;                          
+   P1SEL0 |= BIT7+BIT6; 
+
+//  //TA1.1 TA1.2
+//   TA1CTL |= TASSEL_2+TACLR+TAIE;                            //SMCLK (1 MHz), Up mode: Timer counts up to TAxCCR0
+//   TA0CTL |= MC_1;
+//   TA1CCR0=  1000;                       //2778
+//   
+//   TA1CCTL1 |= OUTMOD_7+CCIE+CCIFG;                                     //Capture/compare interrupt enable. This bit enables the interrupt request of the corresponding CCIFG flag.
+//   TA1CCTL2 |= OUTMOD_7+CCIE+CCIFG;                                                    
+//   
+//   P4DIR |= BIT0;                          
+//   P8DIR |= BIT3;                          
+//   P4SEL0 |= BIT0; 
+//   P8SEL0 |= BIT3; 
+}
+
+int main(void)
+{
+    WDTCTL = WDTPW | WDTHOLD;                          // Stop watchdog timer
+
+    // Configure one FRAM waitstate as required by the device datasheet for MCLK
+    // operation beyond 8MHz _before_ configuring the clock system.
+    FRCTL0 = FRCTLPW | NWAITS_1;
+
+    __bis_SR_register(SCG0);                           // disable FLL
+    CSCTL3 |= SELREF__REFOCLK;                         // Set REFO as FLL reference source
+    CSCTL0 = 0;                                        // clear DCO and MOD registers
+    CSCTL1 &= ~(DCORSEL_7);                            // Clear DCO frequency select bits first
+    CSCTL1 |= DCORSEL_5;                               // Set DCO = 16MHz
+    CSCTL2 = FLLD_0 + 487;                             // DCOCLKDIV = 16MHz
+    __delay_cycles(3);  
+    __bic_SR_register(SCG0);                           // enable FLL
+    while(CSCTL7 & (FLLUNLOCK0 | FLLUNLOCK1));         // FLL locked
+    
+    CSCTL4 |= SELMS__DCOCLKDIV | SELA__REFOCLK;        // set default REFO(~32768Hz) as ACLK source, ACLK = 32768Hz
+                                                       // default DCOCLKDIV as MCLK and SMCLK source
+
+    P1DIR |= BIT0 | BIT4;                              // set MCLK and LED pin as output
+    P1SEL0 |= BIT4;                                    // set MCLK pin as second function
+    P8DIR |= BIT0 | BIT1;                              // set ACLK and SMCLK pin as output
+    P8SEL0 |= BIT0 | BIT1;                             // set ACLK and SMCLK pin as second function
+
+    PM5CTL0 &= ~LOCKLPM5;                              // Disable the GPIO power-on default high-impedance mode
+//  PMM_unlockLPM5();                                  // to activate previously configured port settings
+   
+    PWM_setUp();   // suqare wave frequency: 1M--450 ,8M--3.4K, 16M--6.9kHz 
+//     ClockInit();
+    __enable_interrupt();
+    
+    while(1)
+    {
+//        P1OUT ^= BIT0;                                 // Toggle P1.0 using exclusive-OR
+//        __delay_cycles(8000000);                       // Delay for 80000*(1/MCLK)=0.5s
+    }
+    
+     return 0;
+}
+
+
+//void TimerInit()
+//{
+//   //Configure the pin (PxSEL)
+//   P1SEL0 |= GPIO_PIN7; //Connect to timer
+//   TA0CTL |= TASSEL_2+TACLR;                            //ACLK (approximately 32 kHz), Up mode: Timer counts up to TAxCCR0
+//   TA0CTL |= MC_1;
+//   //   TA0CCR0=  1000;                       //2778
+//   //TA0CCTL1 |= OUTMOD_4; //Toggle
+//   TA0CCTL0 |= OUTMOD_3+CCIE+CCIFG;
+//   TA0CCTL1 |= OUTMOD_3+CCIE+CCIFG;                                     //Capture/compare interrupt enable. This bit enables the interrupt request of the corresponding CCIFG flag.
+//   TA0CCTL2 |= OUTMOD_3+CCIE+CCIFG;  
+//   
+//   TA0CCR0 = 0x0800; 
+//   TA0CCR1 = 0x0600;
+//
+//   P1DIR |= GPIO_PIN7; //Set as an output
+//}
+
+
+#pragma vector = TIMER0_A1_VECTOR
+__interrupt void TIMERA0_ISR1(void) 
+{
+switch(__even_in_range(TA0IV,10)) //Clears the flag 
+  {
+       //Cases outlined in previous slide.
+  case 2:
+    //ADCCTL0|=ADCENC|ADCSC; //sampling start
+    TA0CCR1 += 50;
+    if (TA0CCR1 >= 0x800)
+      TA0CCR1= 240;
+    break;
+  case 4: 
+    TA0CCR2=sine[i];
+    if(++i == 360)
+    {
+     i = 0;
+    }  
+    break;
+  }        
+ //  TA0IV = 0;
+  Timer_A_clearTimerInterrupt(TIMER_A1_BASE);
+}
+
+//void CalInit()
+//{
+//  PI_N=1;                        //PI_N?PI???????180/180
+//  PI_25=120;                     //PI*2/3
+//  Tc_2=275;                      //TC/(2*2)=110us/4,??????27.5us/0.1us=275
+//  Tc_2m=247;                     //Tc*m/4=Tc_4*m=247
+//  N2=N_ts*2;                      
+//}
+
+
+////On the compare of TA0CCTL0
+//#pragma vector = TIMER0_A0_VECTOR
+//__interrupt void TIMERA0_ISR0(void) //Flag cleared automatically
+//{
+//    TA0CCR0 += To next compare value
+//}
+//
+////Timer general interrupt
+//#pragma vector = TIMER0_A1_VECTOR
+//__interrupt void TIMERA0_ISR1(void) 
+//{
+//  switch(__even_in_range(TA1IV,10)) //Clears the flag 
+//  {
+//	//Cases outlined in previous slide.
+//    
+////    TA1CTL&=~TA1IFG;
+//   unsigned int j;
+//   int T_1,T_3,T_5;
+//   unsigned long Tc2mSQ;
+//   //-------------------------T_1--------------------------
+//   j=k*PI_N;
+//   if((j<360)&&(j>=180))
+//   {
+//     Tc2mSQ=((long)Tc_2m*sine[j]);
+//     Tc2mSQ=Tc2mSQ>>14;
+//     T_1=Tc_2-Tc2mSQ;
+//   }
+//   else
+//   {
+//     if(j>=Cp)
+//       j=j-Cp;
+//     Tc2mSQ=((long)Tc_2m*sine[j]);
+//     Tc2mSQ=Tc2mSQ>>14;
+//     T_1=Tc_2+Tc2mSQ;
+//   }
+//
+//   if(T_1<HzMin)
+//     T_1=0;
+//   if(T_1>HzMax)
+//     T_1=HzM;
+//
+//   TA0CCR1=T_1;       //s[i];
+//
+//   k++;
+//   if(k>N2)
+//     k=0;
+//
+//}   
+//  }  
