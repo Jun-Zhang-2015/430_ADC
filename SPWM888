@@ -11,7 +11,7 @@ unsigned int i=0;
 unsigned int j=0;
 unsigned int a=0;
 //int sample= 8000;
-unsigned int sine1[361]={ 0, 0, 15,30,46,61,77,92,108,123,138,154,169,184,199,214,
+unsigned int sine[361]={ 0, 0, 15,30,46,61,77,92,108,123,138,154,169,184,199,214,
 229,244,259,274,289,303,318,332,346,361,375,389,403,416,430,
 443,457,470,483,496,509,521,534,546,558,570,582,594,605,616,
 627,638,649,659,670,680,690,699,709,718,727,736,744,753,761,
@@ -36,7 +36,7 @@ unsigned int sine1[361]={ 0, 0, 15,30,46,61,77,92,108,123,138,154,169,184,199,21
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 };
 
-unsigned int sine2[361]={ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+unsigned int sinee[361]={ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
@@ -64,13 +64,13 @@ unsigned int sine2[361]={ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 void PWM_setUp()
 {
  //TA0.1 TA0.2
-   TA0CTL |= TASSEL_2+MC_1+TACLR;                    //ACLK (approximately 32 kHz), Up mode: Timer counts up to TAxCCR0
+   TA0CTL |= TASSEL_2+MC_1+TACLR;                    //, Up mode: Timer counts up to TAxCCR0
    TA0CCR0=  1000;                       
-   TA0CCR1=  250;
+//   TA0CCR1=  250;
  //  TA0CCR2= 750;
    
-   TA0CCTL1 |= OUTMOD_3+CCIE;                                     //Capture/compare interrupt enable. This bit enables the interrupt request of the corresponding CCIFG flag.
-   TA0CCTL2 |= OUTMOD_3+CCIE;                                                    
+   TA0CCTL1 |= OUTMOD_7+CCIE;                                     //Capture/compare interrupt enable. This bit enables the interrupt request of the corresponding CCIFG flag.
+   TA0CCTL2 |= OUTMOD_7+CCIE;                                                    
    
    P1DIR |= BIT7+BIT6;                          
    P1SEL0 |= BIT7+BIT6; 
@@ -132,25 +132,6 @@ int main(void)
 }
 
 
-//void TimerInit()
-//{
-//   //Configure the pin (PxSEL)
-//   P1SEL0 |= GPIO_PIN7; //Connect to timer
-//   TA0CTL |= TASSEL_2+TACLR;                            //ACLK (approximately 32 kHz), Up mode: Timer counts up to TAxCCR0
-//   TA0CTL |= MC_1;
-//   //   TA0CCR0=  1000;                       //2778
-//   //TA0CCTL1 |= OUTMOD_4; //Toggle
-//   TA0CCTL0 |= OUTMOD_3+CCIE+CCIFG;
-//   TA0CCTL1 |= OUTMOD_3+CCIE+CCIFG;                                     //Capture/compare interrupt enable. This bit enables the interrupt request of the corresponding CCIFG flag.
-//   TA0CCTL2 |= OUTMOD_3+CCIE+CCIFG;  
-//   
-//   TA0CCR0 = 0x0800; 
-//   TA0CCR1 = 0x0600;
-//
-//   P1DIR |= GPIO_PIN7; //Set as an output
-//}
-
-
 #pragma vector = TIMER0_A1_VECTOR
 __interrupt void TIMERA0_ISR1(void) 
 {
@@ -163,7 +144,8 @@ switch(__even_in_range(TA0IV,10)) //Clears the flag
 //    if (TA0CCR1 >= 0x800)
 //      TA0CCR1= 240;
 //    j=0;
-    TA0CCR1=sine1[j];
+    TA0CCR1= t1;
+    t1= sine[j];
     if(++j == 360)
     {
      j = 0;
@@ -171,7 +153,7 @@ switch(__even_in_range(TA0IV,10)) //Clears the flag
 //    break;
   case 4: 
 //    i=0;
-    TA0CCR2=sine2[i];
+    TA0CCR2=sinee[i];
     if(++i == 360)
     {
      i = 0;
@@ -181,63 +163,3 @@ switch(__even_in_range(TA0IV,10)) //Clears the flag
  //  TA0IV = 0;
   Timer_A_clearTimerInterrupt(TIMER_A1_BASE);
 }
-
-//void CalInit()
-//{
-//  PI_N=1;                        //PI_N?PI???????180/180
-//  PI_25=120;                     //PI*2/3
-//  Tc_2=275;                      //TC/(2*2)=110us/4,??????27.5us/0.1us=275
-//  Tc_2m=247;                     //Tc*m/4=Tc_4*m=247
-//  N2=N_ts*2;                      
-//}
-
-
-////On the compare of TA0CCTL0
-//#pragma vector = TIMER0_A0_VECTOR
-//__interrupt void TIMERA0_ISR0(void) //Flag cleared automatically
-//{
-//    TA0CCR0 += To next compare value
-//}
-//
-////Timer general interrupt
-//#pragma vector = TIMER0_A1_VECTOR
-//__interrupt void TIMERA0_ISR1(void) 
-//{
-//  switch(__even_in_range(TA1IV,10)) //Clears the flag 
-//  {
-//	//Cases outlined in previous slide.
-//    
-////    TA1CTL&=~TA1IFG;
-//   unsigned int j;
-//   int T_1,T_3,T_5;
-//   unsigned long Tc2mSQ;
-//   //-------------------------T_1--------------------------
-//   j=k*PI_N;
-//   if((j<360)&&(j>=180))
-//   {
-//     Tc2mSQ=((long)Tc_2m*sine[j]);
-//     Tc2mSQ=Tc2mSQ>>14;
-//     T_1=Tc_2-Tc2mSQ;
-//   }
-//   else
-//   {
-//     if(j>=Cp)
-//       j=j-Cp;
-//     Tc2mSQ=((long)Tc_2m*sine[j]);
-//     Tc2mSQ=Tc2mSQ>>14;
-//     T_1=Tc_2+Tc2mSQ;
-//   }
-//
-//   if(T_1<HzMin)
-//     T_1=0;
-//   if(T_1>HzMax)
-//     T_1=HzM;
-//
-//   TA0CCR1=T_1;       //s[i];
-//
-//   k++;
-//   if(k>N2)
-//     k=0;
-//
-//}   
-//  }  
