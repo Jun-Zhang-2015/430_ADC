@@ -65,7 +65,7 @@ void PWM_setUp()
 {
  //TA0.1 TA0.2
    TA0CTL |= TASSEL_2+MC_1+TACLR;                    //ACLK (approximately 32 kHz), Up mode: Timer counts up to TAxCCR0
-   TA0CCR0=  0x900;                       //2778
+   TA0CCR0=  1000;                       
    TA0CCR1=  250;
  //  TA0CCR2= 750;
    
@@ -159,12 +159,19 @@ switch(__even_in_range(TA0IV,10)) //Clears the flag
        //Cases outlined in previous slide.
   case 2:
     //ADCCTL0|=ADCENC|ADCSC; //sampling start
-    TA0CCR1 += 50;
-    if (TA0CCR1 >= 0x800)
-      TA0CCR1= 240;
-    break;
+//    TA0CCR1 += 50;
+//    if (TA0CCR1 >= 0x800)
+//      TA0CCR1= 240;
+//    j=0;
+    TA0CCR1=sine1[j];
+    if(++j == 360)
+    {
+     j = 0;
+    }
+//    break;
   case 4: 
-    TA0CCR2=sine[i];
+//    i=0;
+    TA0CCR2=sine2[i];
     if(++i == 360)
     {
      i = 0;
