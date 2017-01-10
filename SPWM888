@@ -9,8 +9,8 @@
 
 unsigned int i=0;
 unsigned int j=0;
-unsigned int a=0;
-//int sample= 8000;
+//unsigned int a=0;
+
 unsigned int sine[361]={ 0, 0, 15,30,46,61,77,92,108,123,138,154,169,184,199,214,
 229,244,259,274,289,303,318,332,346,361,375,389,403,416,430,
 443,457,470,483,496,509,521,534,546,558,570,582,594,605,616,
@@ -64,13 +64,12 @@ unsigned int sinee[361]={ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
 void PWM_setUp()
 {
  //TA0.1 TA0.2
-   TA0CTL |= TASSEL_2+MC_1+TACLR;                    //, Up mode: Timer counts up to TAxCCR0
+   TA0CTL |= TASSEL_2+MC_1+TACLR;//+TAIE;              //SMCLK, Up mode: Timer counts up to TAxCCR0
    TA0CCR0=  1000;                       
-//   TA0CCR1=  250;
- //  TA0CCR2= 750;
    
-   TA0CCTL1 |= OUTMOD_7+CCIE;                                     //Capture/compare interrupt enable. This bit enables the interrupt request of the corresponding CCIFG flag.
-   TA0CCTL2 |= OUTMOD_7+CCIE;                                                    
+   TA0CCTL1 |= OUTMOD_7;//+CCIE;                          //Capture/compare interrupt enable. This bit enables the interrupt request of the corresponding CCIFG flag.
+   TA0CCTL2 |= OUTMOD_7;//+CCIE;  
+   TA0CCTL0 |= OUTMOD_7+CCIE;
    
    P1DIR |= BIT7+BIT6;                          
    P1SEL0 |= BIT7+BIT6; 
@@ -119,7 +118,7 @@ int main(void)
 //  PMM_unlockLPM5();                                  // to activate previously configured port settings
    
     PWM_setUp();   // suqare wave frequency: 1M--450 ,8M--3.4K, 16M--6.9kHz 
-//     ClockInit();
+
     __enable_interrupt();
     
     while(1)
@@ -131,35 +130,45 @@ int main(void)
      return 0;
 }
 
-
-#pragma vector = TIMER0_A1_VECTOR
-__interrupt void TIMERA0_ISR1(void) 
+ //On the compare of TA0CCTL0
+#pragma vector = TIMER0_A0_VECTOR
+__interrupt void TIMERA0_ISR0(void) //Flag cleared automatically
 {
-switch(__even_in_range(TA0IV,10)) //Clears the flag 
-  {
-       //Cases outlined in previous slide.
-  case 2:
-    //ADCCTL0|=ADCENC|ADCSC; //sampling start
-//    TA0CCR1 += 50;
-//    if (TA0CCR1 >= 0x800)
-//      TA0CCR1= 240;
-//    j=0;
-    TA0CCR1= t1;
-    t1= sine[j];
+  //TA0CCR0 +=1000;
+    TA0CCR1= sine[j];
+    TA0CCR2= sinee[j];
     if(++j == 360)
     {
      j = 0;
     }
-//    break;
-  case 4: 
-//    i=0;
-    TA0CCR2=sinee[i];
-    if(++i == 360)
-    {
-     i = 0;
-    }  
-    break;
-  }        
- //  TA0IV = 0;
-  Timer_A_clearTimerInterrupt(TIMER_A1_BASE);
+    
+    TA0CCR0= 1000;
 }
+
+//#pragma vector = TIMER0_A1_VECTOR
+//__interrupt void TIMERA0_ISR1(void) 
+//{
+//switch(__even_in_range(TA0IV,10)) //Clears the flag 
+//  {
+//       //Cases outlined in previous slide.
+//  case 2:
+//    //ADCCTL0|=ADCENC|ADCSC; //sampling start
+//
+//    TA0CCR1= sine[j];
+//   // TA0CCR2=  sinee[j];
+//    if(++j == 360)
+//    {
+//     j = 0;
+//    }
+////    break;
+////  case 4: 
+////    TA0CCR2=sinee[i];
+////    if(++i == 360)
+////    {
+////     i = 0;
+////    }  
+////    break;
+//  }        
+//// //  TA0IV = 0;
+//  Timer_A_clearTimerInterrupt(TIMER_A1_BASE);
+//}
