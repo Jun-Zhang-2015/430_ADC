@@ -1,0 +1,206 @@
+/**************************************************
+ * 19.496 Project
+ *
+ * Copyright 2015 University of Strathclyde
+ **************************************************/
+#include <msp430.h>
+#include <driverlib.h>
+#include "adc.h"
+
+unsigned int i=0;
+unsigned int j=0;
+//unsigned int a=0;
+unsigned int sample= 50;
+
+unsigned int sine[361]={ 0, 0, 15,30,46,61,77,92,108,123,138,154,169,184,199,214,
+229,244,259,274,289,303,318,332,346,361,375,389,403,416,430,
+443,457,470,483,496,509,521,534,546,558,570,582,594,605,616,
+627,638,649,659,670,680,690,699,709,718,727,736,744,753,761,
+769,776,784,791,798,804,811,817,823,829,834,839,844,849,853,
+857,861,865,868,871,874,877,879,881,883,884,885,886,887,887,
+888,887,887,886,885,884,883,881,879,877,874,871,868,865,861,
+857,853,849,844,839,834,829,823,817,811,804,798,791,784,776,
+769,761,753,744,736,727,718,709,699,690,680,670,659,649,638,
+627,616,605,594,582,570,558,546,534,521,509,496,483,470,457,
+443,430,416,403,389,375,361,346,332,318,303,289,274,259,244,
+229,214,199,184,169,154,138,123,108,92,77,61,46,30,15,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 };
+
+unsigned int sinee[361]={ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
+0, 15,30,46,61,77,92,108,123,138,154,169,184,199,214,
+229,244,259,274,289,303,318,332,346,361,375,389,403,416,430,
+443,457,470,483,496,509,521,534,546,558,570,582,594,605,616,
+627,638,649,659,670,680,690,699,709,718,727,736,744,753,761,
+769,776,784,791,798,804,811,817,823,829,834,839,844,849,853,
+857,861,865,868,871,874,877,879,881,883,884,885,886,887,887,
+888,887,887,886,885,884,883,881,879,877,874,871,868,865,861,
+857,853,849,844,839,834,829,823,817,811,804,798,791,784,776,
+769,761,753,744,736,727,718,709,699,690,680,670,659,649,638,
+627,616,605,594,582,570,558,546,534,521,509,496,483,470,457,
+443,430,416,403,389,375,361,346,332,318,303,289,274,259,244,
+229,214,199,184,169,154,138,123,108,92,77,61,46,30,15};
+
+void PWM_setUp()
+{
+ //TA0.1 TA0.2
+   TA0CTL |= TASSEL_2+MC_1+TACLR;//+TAIE;              //SMCLK, Up mode: Timer counts up to TAxCCR0
+   TA0CCR0=  889;                       
+   
+   TA0CCTL1 |= OUTMOD_7;//+CCIE;                          //Capture/compare interrupt enable. This bit enables the interrupt request of the corresponding CCIFG flag.
+   TA0CCTL2 |= OUTMOD_7;//+CCIE;  
+   TA0CCTL0 |= OUTMOD_7+CCIE;
+   
+   P1DIR |= BIT7+BIT6;                          
+   P1SEL0 |= BIT7+BIT6; 
+}
+
+int main(void)
+{
+    WDTCTL = WDTPW | WDTHOLD;                          // Stop watchdog timer
+
+    // Configure one FRAM waitstate as required by the device datasheet for MCLK
+    // operation beyond 8MHz _before_ configuring the clock system.
+    FRCTL0 = FRCTLPW | NWAITS_1;
+
+    __bis_SR_register(SCG0);                           // disable FLL
+    CSCTL3 |= SELREF__REFOCLK;                         // Set REFO as FLL reference source
+    CSCTL0 = 0;                                        // clear DCO and MOD registers
+    CSCTL1 &= ~(DCORSEL_7);                            // Clear DCO frequency select bits first
+    CSCTL1 |= DCORSEL_5;                               // Set DCO = 16MHz
+    CSCTL2 = FLLD_0 + 487;                             // DCOCLKDIV = 16MHz
+    __delay_cycles(3);  
+    __bic_SR_register(SCG0);                           // enable FLL
+    while(CSCTL7 & (FLLUNLOCK0 | FLLUNLOCK1));         // FLL locked
+    
+    CSCTL4 |= SELMS__DCOCLKDIV | SELA__REFOCLK;        // set default REFO(~32768Hz) as ACLK source, ACLK = 32768Hz
+                                                       // default DCOCLKDIV as MCLK and SMCLK source
+
+    P1DIR |= BIT0 | BIT4;                              // set MCLK and LED pin as output
+    P1SEL0 |= BIT4;                                    // set MCLK pin as second function
+    P8DIR |= BIT0 | BIT1;                              // set ACLK and SMCLK pin as output
+    P8SEL0 |= BIT0 | BIT1;                             // set ACLK and SMCLK pin as second function
+
+    //GPIO 8.1
+  GPIO_setAsPeripheralModuleFunctionInputPin(GPIO_PORT_P8, GPIO_PIN1, GPIO_PRIMARY_MODULE_FUNCTION);
+//        SYSCFG2 |= ADCPCTL9;  
+    
+    
+    PM5CTL0 &= ~LOCKLPM5;                              // Disable the GPIO power-on default high-impedance mode
+//  PMM_unlockLPM5();                                  // to activate previously configured port settings
+   
+    PWM_setUp();   // suqare wave frequency: 1M--450 ,8M--3.4K, 16M--6.9kHz 
+
+   ADC_init(ADC_BASE,
+            ADC_SAMPLEHOLDSOURCE_SC,
+            ADC_CLOCKSOURCE_ADCOSC,
+            ADC_CLOCKDIVIDER_1);
+   ADC_enable(ADC_BASE); 
+   ADC_enableInterrupt(ADC_BASE,ADC_COMPLETED_INTERRUPT);
+   ADC_clearInterrupt(ADC_BASE,ADC_COMPLETED_INTERRUPT);
+   ADC_setupSamplingTimer(ADC_BASE, ADC_CYCLEHOLD_4_CYCLES, ADC_MULTIPLESAMPLESDISABLE);
+   ADC_configureMemory(ADC_BASE,
+                       ADC_INPUT_A9,
+                       ADC_VREFPOS_AVCC,
+                       ADC_VREFNEG_AVSS);
+    
+    __enable_interrupt();
+ 
+//   //ADC P8.1 A9 
+//   GPIO_setAsPeripheralModuleFunctionInputPin(GPIO_PORT_P8, GPIO_PIN1, GPIO_PRIMARY_MODULE_FUNCTION);
+  
+    while(1)
+    {
+//        P1OUT ^= BIT0;                                 // Toggle P1.0 using exclusive-OR
+//        __delay_cycles(8000000);                       // Delay for 80000*(1/MCLK)=0.5s
+      
+      ADC_startConversion(ADC_BASE, ADC_REPEATED_SINGLECHANNEL);
+      
+    }
+    
+     return 0;
+}
+
+// ADC interrupt service routine
+#pragma vector=ADC_VECTOR           // these two lines are used by IAR and CCC
+__interrupt void ADC_ISR(void)
+{
+  switch(__even_in_range(ADCIV,ADCIV_ADCIFG))
+  {
+    case ADCIV_ADCIFG:              // conversion complete
+        {      
+         sample = ADCMEM0;
+         break;
+        }          
+  }
+  
+  ADC_clearInterrupt(ADC_BASE, ADC_COMPLETED_INTERRUPT);
+}
+
+ //On the compare of TA0CCTL0
+#pragma vector = TIMER0_A0_VECTOR
+__interrupt void TIMERA0_ISR0(void) //Flag cleared automatically
+{
+  //TA0CCR0 +=1000;
+    TA0CCR1= sine[j];
+//    TA0CCR2= sinee[j];
+    
+    TA0CCR2 = sample;
+    
+    if(++j == 360)
+    {
+     j = 0;
+    }
+    
+    TA0CCR0= 889;
+}
+
+
+//#pragma vector = TIMER0_A1_VECTOR
+//__interrupt void TIMERA0_ISR1(void) 
+//{
+//switch(__even_in_range(TA0IV,10)) //Clears the flag 
+//  {
+//       //Cases outlined in previous slide.
+//  case 2:
+//    //ADCCTL0|=ADCENC|ADCSC; //sampling start
+//
+//    TA0CCR1= sine[j];
+//   // TA0CCR2=  sinee[j];
+//    if(++j == 360)
+//    {
+//     j = 0;
+//    }
+////    break;
+////  case 4: 
+////    TA0CCR2=sinee[i];
+////    if(++i == 360)
+////    {
+////     i = 0;
+////    }  
+////    break;
+//  }        
+//// //  TA0IV = 0;
+//  Timer_A_clearTimerInterrupt(TIMER_A1_BASE);
+//}
