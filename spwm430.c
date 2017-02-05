@@ -7,22 +7,22 @@
 #include <driverlib.h>
 #include "adc.h"
 
-#define  MIN_RATE    		1
+#define  MIN_RATE    		1           //0.5?
 #define  MAX_RATE    		50
-#define  MIN_SAMPLES		360																			//  50Hz²¨ÐÎÊ±Ò»ÖÜÆÚ³éÑù360´Î
-#define  MAX_SAMPLES		(MIN_SAMPLES*MAX_RATE/MIN_RATE)					//  1 Hz²¨ÐÎÊ±      ³éÑù360¡Á50´Î
-#define  MAX_CCR				444																			//	888ÊÇÒ»ÖÜÆÚ     UP/DOWN Ä£Ê½ÏÂ±È½ÏCCR×î´ó444 
+#define  MIN_SAMPLES		360																			//  50Hzæ³¢å½¢æ—¶ä¸€å‘¨æœŸæŠ½æ ·360æ¬¡
+#define  MAX_SAMPLES		(MIN_SAMPLES*MAX_RATE/MIN_RATE)					//  1 Hzæ³¢å½¢æ—¶      æŠ½æ ·360Ã—50æ¬¡
+#define  MAX_CCR				444																			//	888æ˜¯ä¸€å‘¨æœŸ     UP/DOWN æ¨¡å¼ä¸‹æ¯”è¾ƒCCRæœ€å¤§444 
 
 
 
 
-unsigned int samples = MIN_SAMPLES;				// ³éÑùÊý£¬Ëæ×ÅÐýÅ¥×ª¶¯±ä»¯£¬
-unsigned int rate = MAX_RATE;		
-unsigned int min_adc = 256;								// ÉèÖÃÁË³õÊ¼Öµ£¬ÔÚÔËÐÐÖÐ½øÐÐµ÷Õû
-unsigned int max_adc = 512;								// ÉèÖÃÁË³õÊ¼Öµ£¬ÔÚÔËÐÐÖÐ½øÐÐµ÷Õû
-unsigned int adcvalue ;										//  ÓÃÓÚ´æ·Å¶Á½øÀ´µÄadcÖµ
+unsigned int samples = MIN_SAMPLES;				// æŠ½æ ·æ•°ï¼Œéšç€æ—‹é’®è½¬åŠ¨å˜åŒ–ï¼Œ
+unsigned int rate = MAX_RATE;		                        // é¢‘çŽ‡ï¼Œ æ²¡ç”¨
+unsigned int min_adc = 256;								// è®¾ç½®äº†åˆå§‹å€¼ï¼Œåœ¨è¿è¡Œä¸­è¿›è¡Œè°ƒæ•´
+unsigned int max_adc = 512;								// è®¾ç½®äº†åˆå§‹å€¼ï¼Œåœ¨è¿è¡Œä¸­è¿›è¡Œè°ƒæ•´
+unsigned int adcvalue ;										//  ç”¨äºŽå­˜æ”¾è¯»è¿›æ¥çš„adcå€¼
 
-
+//å°†PWMæ”¹ä¸ºup/down æ¨¡å¼ï¼ï¼ï¼ï¼
 void PWM_setUp()
 {
  //TA0.1 TA0.2
@@ -116,9 +116,9 @@ __interrupt void ADC_ISR(void)
         	min_adc = adcvalue;
         if (adcvalue>max_adc)
         	max_adc = adcvalue;
-        samples = MAX_SAMPLES*(adcvalue-min_adc)/(max_adc-min_adc);
-        if ( samples == 0 )
-        	samples = MIN_SAMPLES;																		//  ×îÐ¡²»ÄÜµÍÓÚ´Ë
+        samples = MAX_SAMPLES*(adcvalue-min_adc)/(max_adc-min_adc);   //default 360
+        if ( samples <= MIN_SAMPLES )                              // 1ä¸‹é¢æœ‰ä¸ªæ­»åŒºï¼Ÿ
+        	samples = MIN_SAMPLES;																		//  æœ€å°ä¸èƒ½ä½ŽäºŽæ­¤
         break;
         }          
   }
@@ -126,14 +126,14 @@ __interrupt void ADC_ISR(void)
   ADC_clearInterrupt(ADC_BASE, ADC_COMPLETED_INTERRUPT);
 }
 
- //On the compare of TA0CCTL0
+ //On the compare of TA0CCTL0           è‹¥æ˜¯up/downæ¨¡å¼ å¦‚ä½•ä½¿è®¡æ•°åœ¨888 æ—¶å‘ç”Ÿä¸­æ–­ï¼Ÿï¼Ÿï¼Ÿ
 #pragma vector = TIMER0_A0_VECTOR
 __interrupt void TIMERA0_ISR0(void) //Flag cleared automatically
 {
-		static int setccr = MAX_CCR;						// µ±Ç°ÓÃÓÚÉèÖÃµÄCCRÖµ,   0±íÊ¾Õ¼¿Õ±È100%£¬ µÈÓÚMAX_CCRÊ±£¬Õ¼¿Õ±ÈÎª0%																	
-		static unsigned int i=0;								// 	³éÑù¼ÆÊý ,  i==samplesÊ±£¬ ÂúÒ»¸öÖÜÆÚ  
+		static int setccr = MAX_CCR;			// å½“å‰ç”¨äºŽè®¾ç½®çš„CCRå€¼,   0è¡¨ç¤ºå ç©ºæ¯”100%ï¼Œ ç­‰äºŽMAX_CCRæ—¶ï¼Œå ç©ºæ¯”ä¸º0%																	
+		static unsigned int i=0;			// 	æŠ½æ ·è®¡æ•° ,  i==samplesæ—¶ï¼Œ æ»¡ä¸€ä¸ªå‘¨æœŸ  
 		
-		if(i*2 < samples) 											//  ÉÏ°ëÖÜÆÚ
+		if(i*2 < samples) 			        //  ä¸ŠåŠå‘¨æœŸ
 			{
 				TA0CCR1 = setccr;
 		    TA0CCR2 = MAX_CCR;				
@@ -145,6 +145,6 @@ __interrupt void TIMERA0_ISR0(void) //Flag cleared automatically
     
     if(++i == samples)
      i = 0;
- 		setccr =MAX_CCR- MAX_CCR* abs(sine( i*2*PI/samples ));			//		ËãºÃÁËÏÂ´ÎÖÐ¶ÏÊ±ÓÃ  
+ 		setccr =MAX_CCR- MAX_CCR* abs(sin( i*2*PI/samples ));			//		ç®—å¥½äº†ä¸‹æ¬¡ä¸­æ–­æ—¶ç”¨  
 
 }
