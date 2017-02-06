@@ -10,9 +10,9 @@
 #define  MIN_RATE    		1           //0.5?
 #define  MAX_RATE    		50
 #define  MIN_SAMPLES		360																			//  50Hz波形时一周期抽样360次
-#define  MAX_SAMPLES		(MIN_SAMPLES*MAX_RATE/MIN_RATE)					//  1 Hz波形时      抽样360×50次
+#define  MAX_SAMPLES		18000					//  1 Hz波形时      抽样360×50次
 #define  MAX_CCR				444																			//	888是一周期     UP/DOWN 模式下比较CCR最大444 
-
+#define  PI                     3.14159265357
 
 
 
@@ -22,16 +22,16 @@ unsigned int min_adc = 256;								// 设置了初始值，在运行中进行调
 unsigned int max_adc = 512;								// 设置了初始值，在运行中进行调整
 unsigned int adcvalue ;										//  用于存放读进来的adc值
 
-//将PWM改为up/down 模式！！！！
+
 void PWM_setUp()
 {
  //TA0.1 TA0.2
-   TA0CTL |= TASSEL_2+MC_1+TACLR;//+TAIE;              //SMCLK, Up mode: Timer counts up to TAxCCR0
-   TA0CCR0=  889;                       
+   TA0CTL |= TASSEL_2+MC_3+TACLR;//+TAIE;              //SMCLK, Up/Down mode: Timer counts up to TAxCCR0
+   TA0CCR0=  444;                       
    
-   TA0CCTL1 |= OUTMOD_7;//+CCIE;                          //Capture/compare interrupt enable. This bit enables the interrupt request of the corresponding CCIFG flag.
-   TA0CCTL2 |= OUTMOD_7;//+CCIE;  
-   TA0CCTL0 |= OUTMOD_7+CCIE;
+   TA0CCTL1 |= OUTMOD_6;//+CCIE;                          //Capture/compare interrupt enable. This bit enables the interrupt request of the corresponding CCIFG flag.
+   TA0CCTL2 |= OUTMOD_6;//+CCIE;  
+   TA0CCTL0 |= OUTMOD_6+CCIE;
    
    P1DIR |= BIT7+BIT6;                          
    P1SEL0 |= BIT7+BIT6; 
@@ -116,7 +116,7 @@ __interrupt void ADC_ISR(void)
         	min_adc = adcvalue;
         if (adcvalue>max_adc)
         	max_adc = adcvalue;
-        samples = MAX_SAMPLES*(adcvalue-min_adc)/(max_adc-min_adc);   //default 360
+        samples = 18000*((float)(adcvalue-min_adc))/((float)(max_adc-min_adc));   //default 360
         if ( samples <= MIN_SAMPLES )                              // 1下面有个死区？
         	samples = MIN_SAMPLES;																		//  最小不能低于此
         break;
@@ -143,8 +143,9 @@ __interrupt void TIMERA0_ISR0(void) //Flag cleared automatically
     	TA0CCR2 = setccr;
     	}
     
-    if(++i == samples)
+    if(++i >= samples)
      i = 0;
  		setccr =MAX_CCR- MAX_CCR* abs(sin( i*2*PI/samples ));			//		算好了下次中断时用  
 
 }
+
