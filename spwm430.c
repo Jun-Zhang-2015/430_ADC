@@ -1,11 +1,11 @@
 /**************************************************
  * 19.496 Project
- *
  * Copyright 2015 University of Strathclyde
  **************************************************/
 #include <msp430.h>
 #include <driverlib.h>
 #include "adc.h"
+#include "math.h"
 
 #define  MIN_RATE    		1           //0.5?
 #define  MAX_RATE    		50
@@ -15,7 +15,8 @@
 #define  PI                     3.14159265357
 
 
-
+unsigned int sinetable;
+unsigned int table1;
 unsigned int samples = MIN_SAMPLES;				// 抽样数，随着旋钮转动变化，
 unsigned int rate = MAX_RATE;		                        // 频率， 没用
 unsigned int min_adc = 256;								// 设置了初始值，在运行中进行调整
@@ -26,12 +27,12 @@ unsigned int adcvalue ;										//  用于存放读进来的adc值
 void PWM_setUp()
 {
  //TA0.1 TA0.2
-   TA0CTL |= TASSEL_2+MC_3+TACLR;//+TAIE;              //SMCLK, Up/Down mode: Timer counts up to TAxCCR0
-   TA0CCR0=  444;                       
+   TA0CTL |= TASSEL_2+MC_1+TACLR;//+TAIE;              //SMCLK, Up/Down mode: Timer counts up to TAxCCR0
+   TA0CCR0=  888;                       
    
-   TA0CCTL1 |= OUTMOD_6;//+CCIE;                          //Capture/compare interrupt enable. This bit enables the interrupt request of the corresponding CCIFG flag.
-   TA0CCTL2 |= OUTMOD_6;//+CCIE;  
-   TA0CCTL0 |= OUTMOD_6+CCIE;
+   TA0CCTL1 |= OUTMOD_7;//+CCIE;                          //Capture/compare interrupt enable. This bit enables the interrupt request of the corresponding CCIFG flag.
+   TA0CCTL2 |= OUTMOD_7;//+CCIE;  
+   TA0CCTL0 |= OUTMOD_7+CCIE;
    
    P1DIR |= BIT7+BIT6;                          
    P1SEL0 |= BIT7+BIT6; 
@@ -134,18 +135,23 @@ __interrupt void TIMERA0_ISR0(void) //Flag cleared automatically
 		static unsigned int i=0;			// 	抽样计数 ,  i==samples时， 满一个周期  
 		
 		if(i*2 < samples) 			        //  上半周期
-			{
-				TA0CCR1 = setccr;
-		    TA0CCR2 = MAX_CCR;				
+		{
+		    TA0CCR1 = setccr;
+		    TA0CCR2 = 0;				
     	}
     else {
-    	TA0CCR1 = MAX_CCR;
-    	TA0CCR2 = setccr;
+    	TA0CCR1 = 0;
+    	TA0CCR2 = -1*setccr;
     	}
     
     if(++i >= samples)
      i = 0;
- 		setccr =MAX_CCR- MAX_CCR* abs(sin( i*2*PI/samples ));			//		算好了下次中断时用  
+     
+    setccr = 888 * sin( i*PI/samples*2 );	
+     
+    sinetable = sin( i*PI/samples*2 );
+    table1 = sin(90/180*PI);
+    // setccr =MAX_CCR- MAX_CCR* abs(sin( i*PI/samples ));			//		算好了下次中断时用  
 
 }
 
