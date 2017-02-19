@@ -9,24 +9,24 @@
 
 #define  PI  						3.1415926535897932384626
  		
-#define  MIN_RATE    		1																				//  ¿ÉĞŞ¸Ä
-#define  MAX_RATE    		50																			//  ¿ÉĞŞ¸Ä
+#define  MIN_RATE    		1																				//  å¯ä¿®æ”¹
+#define  MAX_RATE    		50																			//  å¯ä¿®æ”¹
 
-#define  MIN_SAMPLES		256																			//  50Hz²¨ĞÎÊ±Ò»ÖÜÆÚ³éÑù256´Î
-#define  Multi_N				16																			//  ×î´ó³éÑùÊı  = MIN_SAMPLES * Multi_N  1 2 4 8 16 32...
-#define  STD_CCR				888																			//	888ÊÇÒ»ÖÜÆÚ     UP/DOWN Ä£Ê½ÏÂ±È½ÏCCR×î´ó444 
+#define  MIN_SAMPLES		256																			//  50Hzæ³¢å½¢æ—¶ä¸€å‘¨æœŸæŠ½æ ·256æ¬¡
+#define  Multi_N				16		       //è¡¨çš„å€æ•° Nä¸ºåˆ†æ®µæ¬¡æ•°																//  æœ€å¤§æŠ½æ ·æ•°  = MIN_SAMPLES * Multi_N  1 2 4 8 16 32...
+#define  STD_CCR				888*360/256            //æŠ½æ ·æ•°ä¸ºmin_samplesæ—¶ SPWMè¾¾åˆ°50Hzçš„CCR0æ•°å€¼																			//	888æ˜¯ä¸€å‘¨æœŸ     UP/DOWN æ¨¡å¼ä¸‹æ¯”è¾ƒCCRæœ€å¤§444 
 #define  MAX_SAMPLES    (MIN_SAMPLES/4*Multi_N)
 
-unsigned int sin_tab[MIN_SAMPLES/4 *Multi_N+1];									//  1 Hz²¨ĞÎÊ± ³éÑùÊı£¬  Ò»¸öÖÜÆÚÖ»Òª1/4ÖÜÆÚ¼´¿É	
+unsigned int sin_tab[MIN_SAMPLES/4 *Multi_N+1];				//  1 Hzæ³¢å½¢æ—¶ æŠ½æ ·æ•°ï¼Œ  ä¸€ä¸ªå‘¨æœŸåªè¦1/4å‘¨æœŸå³å¯	
 unsigned int step=1;																			//
 
-unsigned int samples = MIN_SAMPLES;															// ³éÑùÊı£¬Ëæ×ÅĞıÅ¥×ª¶¯±ä»¯£¬
+unsigned int samples = MIN_SAMPLES;															// æŠ½æ ·æ•°ï¼Œéšç€æ—‹é’®è½¬åŠ¨å˜åŒ–ï¼Œ
 		
-unsigned int min_adc = 256;																			// ÉèÖÃÁË³õÊ¼Öµ£¬ÔÚÔËĞĞÖĞ½øĞĞµ÷Õû
-unsigned int max_adc = 960;																			// ÉèÖÃÁË³õÊ¼Öµ£¬ÔÚÔËĞĞÖĞ½øĞĞµ÷Õû
-unsigned int adcvalue ;																					//  ÓÃÓÚ´æ·Å¶Á½øÀ´µÄadcÖµ
-unsigned int curr_ccr=888;																					//  µ±Ç° TA0CCR0
-float fact=1;																										//  ·Å´óÒò×Ó£¬ÓÃÓÚ·Å´ósin_tab[i] µ½ÕıÈ·Öµ
+unsigned int min_adc = 256;																			// è®¾ç½®äº†åˆå§‹å€¼ï¼Œåœ¨è¿è¡Œä¸­è¿›è¡Œè°ƒæ•´
+unsigned int max_adc = 960;																			// è®¾ç½®äº†åˆå§‹å€¼ï¼Œåœ¨è¿è¡Œä¸­è¿›è¡Œè°ƒæ•´
+unsigned int adcvalue ;																					//  ç”¨äºå­˜æ”¾è¯»è¿›æ¥çš„adcå€¼
+unsigned int curr_ccr=888;																					//  å½“å‰ TA0CCR0
+float fact=1;		   //å€æ•°																								//  æ”¾å¤§å› å­ï¼Œç”¨äºæ”¾å¤§sin_tab[i] åˆ°æ­£ç¡®å€¼
 
 
 void PWM_setUp()
@@ -92,33 +92,27 @@ int main(void)
                        ADC_VREFPOS_AVCC,
                        ADC_VREFNEG_AVSS);
     
-		//   Ò»ÏÂ³õÊ¼»¯ sin_tab ,±íµÄÖµÒÔ  SPWM Îª50Hz£¬³éÑùÊıÎªMIN_SAMPLESÇé¿öÏÂ CCR0µÄÖµÎªÀ¶±¾
+		//   ä¸€ä¸‹åˆå§‹åŒ– sin_tab ,è¡¨çš„å€¼ä»¥  SPWM ä¸º50Hzï¼ŒæŠ½æ ·æ•°ä¸ºMIN_SAMPLESæƒ…å†µä¸‹ CCR0çš„å€¼ä¸ºè“æœ¬
 		//	 
 		//		
 
 	  int i;
 	  
 	  for ( i =0;i<=MAX_SAMPLES;i++)
-	  		sin_tab[i] = sin(i*PI/2/MAX_SAMPLES)*STD_CCR;					// ³õÊ¼»¯sin_tab ±í¸ñ  ÓÃSTD_CCR À´Ëã£¬¾ßÌåÓÃÊ±ĞŞÕı
+	  	sin_tab[i] = sin(i*PI/2/MAX_SAMPLES)*STD_CCR;			// åˆå§‹åŒ–sin_tab è¡¨æ ¼  ç”¨STD_CCR æ¥ç®—ï¼Œå…·ä½“ç”¨æ—¶ä¿®æ­£
 
     __enable_interrupt();
- 
-//   //ADC P8.1 A9 
-//   GPIO_setAsPeripheralModuleFunctionInputPin(GPIO_PORT_P8, GPIO_PIN1, GPIO_PRIMARY_MODULE_FUNCTION);
   
     while(1)
-    {
-//        P1OUT ^= BIT0;                                 	// Toggle P1.0 using exclusive-OR
-
-      
+    { 
      	ADC_startConversion(ADC_BASE, ADC_REPEATED_SINGLECHANNEL);
 
 			unsigned int v = 0;
 
 		 	if ( v == adcvalue ) 
 		 		{
-		 		__delay_cycles(80000/5);                       			// Delay for 80000*(1/MCLK)=0.5s  Ô­À´ÊÇ8000000£¬ÏÖ100ms
-		 		continue;												//  µçÎ»Æ÷Ã»ÓĞ¶¯
+		 		__delay_cycles(80000/5);                       	// Delay for 80000*(1/MCLK)=0.5s  åŸæ¥æ˜¯8000000ï¼Œç°100ms
+		 		continue;							//  ç”µä½å™¨æ²¡æœ‰åŠ¨
 		 	}
 			v = adcvalue;
 			if (adcvalue< min_adc )
@@ -127,8 +121,8 @@ int main(void)
         	max_adc = adcvalue;
 				
 			adcv = adcvalue-min_adc;
-			mv = (max_adc-min_adc)/Multi_N;					//   ×îĞ¡Ò»¶Î
-			samples = MIN_SAMPLES*Multi_N;					//		Ò»¸öÖÜÆÚ×î¶à³éÑùÊı
+			mv = (max_adc-min_adc)/Multi_N;					//   æœ€å°ä¸€æ®µ
+			samples = MIN_SAMPLES*Multi_N;					//		ä¸€ä¸ªå‘¨æœŸæœ€å¤šæŠ½æ ·æ•°
 			for ( step=1;step<=Multi_N;step<<1)
 				{
 				 	if ( adcv <= mv ) 
@@ -137,12 +131,12 @@ int main(void)
 				  samples>>1;
 				}
 			
-			//  ÒÑ¾­µÃµ½ÁË²½³¤ step ºÍ samples ,ĞèÒª¼ÆËã µ±Ç°CCRÖµÓÃÓÚ¸³ÓèTA0CCR0
+			//  å·²ç»å¾—åˆ°äº†æ­¥é•¿ step å’Œ samples ,éœ€è¦è®¡ç®— å½“å‰CCRå€¼ç”¨äºèµ‹äºˆTA0CCR0
 			//	
 			fact = (float)(mv-adcv)/(float)mv;
       curr_ccr = STD_CCR+ STD_CCR* ( (float)(mv-adcv)/(float)mv );
-      TA0CCR0 = curr_ccr;																							//  Ö±½Ó¸³Öµ»¹ÊÇÒªÏÈ×öÊ²Ã´²Ù×÷²ÅĞĞ£¿£¿
-      																																//   »òÕßÔËĞĞPWM_SETUP
+      TA0CCR0 = curr_ccr;																							//  ç›´æ¥èµ‹å€¼è¿˜æ˜¯è¦å…ˆåšä»€ä¹ˆæ“ä½œæ‰è¡Œï¼Ÿï¼Ÿ
+      																																//   æˆ–è€…è¿è¡ŒPWM_SETUP
         
     }
     
@@ -169,18 +163,17 @@ __interrupt void ADC_ISR(void)
 #pragma vector = TIMER0_A0_VECTOR
 __interrupt void TIMERA0_ISR0(void) //Flag cleared automatically
 {
-		static unsigned int i=0;								// 	³éÑù¼ÆÊı ,  i==samplesÊ±£¬ ÂúÒ»¸öÖÜÆÚ  
-		unsigned ss,ii;													//  ss ÊÇ samples µÄÒ»°ë£¬°ë¸öÖÜÆÚ
+		static unsigned int i=0;			// 	æŠ½æ ·è®¡æ•° ,  i==samplesæ—¶ï¼Œ æ»¡ä¸€ä¸ªå‘¨æœŸ  
+		unsigned ss,ii;					//  ss æ˜¯ samples çš„ä¸€åŠï¼ŒåŠä¸ªå‘¨æœŸ
 		
 		
-		ss = samples>>1;
-		if(i < ss) 															//  ÉÏ°ëÖÜÆÚ
-			{
-				
-				if ( i*2<ss)
-					TA0CCR1 = sin_tab[step*i]*(1+fact);
-				esle
-				  TA0CCR1 = sin_tab[ss-step*i]*(1+fact);
+		ss = samples>>1;       //äºŒè¿›åˆ¶ å³ç§»ä¸€ä½ ç›¸å½“äºé™¤äºŒ                      
+		if(i < ss) 															//  ä¸ŠåŠå‘¨æœŸ
+		{
+		    if ( i*2<ss)
+		       TA0CCR1 = sin_tab[step*i]*(1+fact);
+		    esle
+		       TA0CCR1 = sin_tab[ss-step*i]*(1+fact);    //sinx = sin(PI-xï¼‰         
 		    TA0CCR2 = curr_ccr;				
     	}
     else {
