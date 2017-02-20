@@ -29,7 +29,7 @@ unsigned int adcvalue ;
 void PWM_setUp()
 {
  //TA0.1 TA0.2
-   TA0CTL |= TASSEL_2+MC_1+TACLR;//+TAIE;              //SMCLK, MC_1= Up mode: Timer counts up to TAxCCR0
+   TA0CTL |= TASSEL_2+MC_3+TACLR;//+TAIE;              //SMCLK, MC_1= Up mode: Timer counts up to TAxCCR0
    
    P1DIR |= BIT7+BIT6;           // P1.6 and P1.7 to output
    P1SEL0 |= BIT7+BIT6;
@@ -38,9 +38,9 @@ void PWM_setUp()
    TA0CCTL2 |= OUTMOD_2;//+CCIE;       // CCR2 toggle/reset
    TA0CCTL0 |= OUTMOD_7+CCIE;          //Capture/compare interrupt enable. This bit enables the interrupt request of the corresponding CCIFG flag.
 
-   TA0CCR0 = 1250;                     // PWM frequency 12.8kHz
-   TA0CCR1 = 625;
-   TA0CCR2 = 600;     //Dead time= CCR1-CCR2=625-600 =25 
+   TA0CCR0 = 625;                     // PWM frequency 12.8kHz？ ---示波器检测PWM频率为6.369kHz
+   TA0CCR1 = 625;      //P1.7 Low
+   TA0CCR2 = 600;      // P1.6 high      Dead time= CCR1-CCR2=625-600 =25 
 }
 
 int main(void)
@@ -136,37 +136,6 @@ __interrupt void ADC_ISR(void)
 __interrupt void TIMERA0_ISR0(void) //Flag cleared automatically
 {
  
-//  static int setccr ;			// 当前用于设置的CCR值,   0表示占空比100%， 等于MAX_CCR时，占空比为0%																	
-//  static unsigned int i=0;			// 	抽样计数 ,  i==samples时， 满一个周期  
-//  
-//  if(i*2 < sample) 			        //  上半周期
-//  {
-//	TA0CCR1 = setccr;
-//        TA0CCR2 = 0;				
-//    	}
-//    else {
-//    	TA0CCR1 = 0;
-//    	TA0CCR2 = -1*setccr;
-//    	}
-//    
-//    if(++i >= sample)
-//     i = 0;
-//  
-//    setccr = ((int)(888* sin(i*2*PI/sample) ));
-//    TA0CCR0=  888;
-//  setccr =444- ((int)(444* sin(i*2*PI/sample) ));	
-//  tb= i*2*PI/sample ;	
-//  tc = sin( i*2*PI/sample );	
-//
-//  TA0CCR1= sine[j];
-////    TA0CCR2= sinee[j];
-//
-//    TA0CCR2 = sample;
-//
-//    if(++j == 360)
-//    {
-//     j = 0;
-//    }
-//
-//    TA0CCR0= 889;
+   TA0CCR0= 1250;     //一定要有 才能正确持续中断
 }
+
