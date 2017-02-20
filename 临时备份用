@@ -8,36 +8,44 @@
 #include "adc.h"
 #include "math.h"
 
-#define  PI                     3.14159265357
+#define  PI  						3.1415926535897932384626
+ 		
+#define  MIN_RATE    		5															//  可修改
+#define  MAX_RATE    		50														//  可修改
 
-unsigned int i=0;
-unsigned int j=0;
-//unsigned int 
-unsigned int sample=120;
-double ta;
-double tb;
-double tc;
-unsigned int samples;
+#define  MIN_SAMPLES		256														//  50Hz波形时一周期抽样256次
+#define  Multi_N				(MAX_RATE/MIN_RATE)						//  最大抽样倍数   基数为STD_CCR  
+#define  STD_CCR				1250		//	1250是一周期     UP/DOWN 模式下比较CCR最大1250/2
+#define  MAX_SAMPLES    (MIN_SAMPLES*Multi_N)	               //  一周期最大抽样数
 
-//unsigned int samples = MIN_SAMPLES;				// 抽样数，随着旋钮转动变化，
-//unsigned int rate = MAX_RATE;		                        // 频率， 没用
-unsigned int min_adc = 256;								// 设置了初始值，在运行中进行调整
-unsigned int max_adc = 512;								// 设置了初始值，在运行中进行调整
-unsigned int adcvalue ;
+unsigned int sin_tab[MIN_SAMPLES/4 *Multi_N+1];				//  最小频率(1Hz)时抽样数，  一个周期只需要1/4周期数据即可满足计算	
+unsigned int step=Multi_N;														//  缺省 50Hz 时步长【本程序算法未用到】
 
+unsigned int samples = MIN_SAMPLES;				// 缺省一周期抽样数，随着旋钮转动变化，
+unsigned int hsamples = MIN_SAMPLES>>1;			// PI--半周期抽样数
+unsigned int qsamples = MIN_SAMPLES>>2;			// PI/2 --1/4 周期抽样数
+		
+unsigned int min_adc = 256;					// 设置了初始值，在运行中进行调整
+unsigned int max_adc = 960;					// 设置了初始值，在运行中进行调整
+unsigned int adcvalue;																//  用于存放读进来的adc值
+unsigned int curr_ccr=STD_CCR;				//  当前 TA0CCR0  本算法未变动 TA0CCR0
+
+unsigned int idx=0;																		// 	下一个抽样位置索引，状态保持着 ,  idx最大值为samples/2 
+unsigned int state=0;																	//  抽样点idx在SIN波区域，偶数表示在上半周期，奇数表示位于下半周期
+unsigned int cflag=0;																	//  正在修改调频参数标志
 
 void PWM_setUp()
 {
  //TA0.1 TA0.2
-   TA0CTL |= TASSEL_2+MC_1+TACLR;//+TAIE;              //SMCLK, Up mode: Timer counts up to TAxCCR0
-   TA0CCR0=  2664;
-
-   TA0CCTL1 |= OUTMOD_7;//+CCIE;                          //Capture/compare interrupt enable. This bit enables the interrupt request of the corresponding CCIFG flag.
-   TA0CCTL2 |= OUTMOD_7;//+CCIE;
+   TA0CTL |= TASSEL_2+MC_1+TACLR;//+TAIE;             //SMCLK, Up mode: Timer counts up to TAxCCR0
+   TA0CCR0=  curr_ccr;                       
+   
+   TA0CCTL1 |= OUTMOD_7;//+CCIE;                      //Capture/compare interrupt enable. This bit enables the interrupt request of the corresponding CCIFG flag.
+   TA0CCTL2 |= OUTMOD_7;//+CCIE;  
    TA0CCTL0 |= OUTMOD_7+CCIE;
-
-   P1DIR |= BIT7+BIT6;
-   P1SEL0 |= BIT7+BIT6;
+   
+   P1DIR |= BIT7+BIT6;                          
+   P1SEL0 |= BIT7+BIT6; 
 }
 
 int main(void)
@@ -54,10 +62,10 @@ int main(void)
     CSCTL1 &= ~(DCORSEL_7);                            // Clear DCO frequency select bits first
     CSCTL1 |= DCORSEL_5;                               // Set DCO = 16MHz
     CSCTL2 = FLLD_0 + 487;                             // DCOCLKDIV = 16MHz
-    __delay_cycles(3);
+    __delay_cycles(3);  
     __bic_SR_register(SCG0);                           // enable FLL
     while(CSCTL7 & (FLLUNLOCK0 | FLLUNLOCK1));         // FLL locked
-
+    
     CSCTL4 |= SELMS__DCOCLKDIV | SELA__REFOCLK;        // set default REFO(~32768Hz) as ACLK source, ACLK = 32768Hz
                                                        // default DCOCLKDIV as MCLK and SMCLK source
 
@@ -67,68 +75,94 @@ int main(void)
     P8SEL0 |= BIT0 | BIT1;                             // set ACLK and SMCLK pin as second function
 
     //GPIO 8.1
-  GPIO_setAsPeripheralModuleFunctionInputPin(GPIO_PORT_P8, GPIO_PIN1, GPIO_PRIMARY_MODULE_FUNCTION);
-//        SYSCFG2 |= ADCPCTL9;
-
-
+  	GPIO_setAsPeripheralModuleFunctionInputPin(GPIO_PORT_P8, GPIO_PIN1, GPIO_PRIMARY_MODULE_FUNCTION);
+//        SYSCFG2 |= ADCPCTL9;  
+    
+    
     PM5CTL0 &= ~LOCKLPM5;                              // Disable the GPIO power-on default high-impedance mode
 //  PMM_unlockLPM5();                                  // to activate previously configured port settings
+   
+    PWM_setUp();   // suqare wave frequency: 1M--450 ,8M--3.4K, 16M--6.9kHz 
 
-    PWM_setUp();   // suqare wave frequency: 1M--450 ,8M--3.4K, 16M--6.9kHz
-
-   ADC_init(ADC_BASE,
+   	ADC_init(ADC_BASE,
             ADC_SAMPLEHOLDSOURCE_SC,
             ADC_CLOCKSOURCE_ADCOSC,
             ADC_CLOCKDIVIDER_1);
-   ADC_enable(ADC_BASE);
-   ADC_enableInterrupt(ADC_BASE,ADC_COMPLETED_INTERRUPT);
-   ADC_clearInterrupt(ADC_BASE,ADC_COMPLETED_INTERRUPT);
-   ADC_setupSamplingTimer(ADC_BASE, ADC_CYCLEHOLD_4_CYCLES, ADC_MULTIPLESAMPLESDISABLE);
-   ADC_configureMemory(ADC_BASE,
-                       ADC_INPUT_A9,
-                       ADC_VREFPOS_AVCC,
-                       ADC_VREFNEG_AVSS);
+   	ADC_enable(ADC_BASE); 
+   	ADC_enableInterrupt(ADC_BASE,ADC_COMPLETED_INTERRUPT);
+   	ADC_clearInterrupt(ADC_BASE,ADC_COMPLETED_INTERRUPT);
+   	ADC_setupSamplingTimer(ADC_BASE, ADC_CYCLEHOLD_4_CYCLES, ADC_MULTIPLESAMPLESDISABLE);
+   	ADC_configureMemory(ADC_BASE,
+            ADC_INPUT_A9,
+            ADC_VREFPOS_AVCC,
+            ADC_VREFNEG_AVSS);
+    
+		//   一下初始化 sin_tab ,表的值以  SPWM 为50Hz，抽样数为MIN_SAMPLES情况下 CCR0的值为蓝本
+		//	 
+		//		
+
+	  int i;
+	  
+	  for ( i =0;i<=MAX_SAMPLES/4;i++)
+	  		sin_tab[i] = sin(i*PI*2/MAX_SAMPLES)*STD_CCR;			// 初始化sin_tab 表格  用STD_CCR 来算，具体用时修正
 
     __enable_interrupt();
-
+ 
     while(1)
     {
-//        P1OUT ^= BIT0;                                 // Toggle P1.0 using exclusive-OR
-//        __delay_cycles(8000000);                       // Delay for 80000*(1/MCLK)=0.5s
+     	ADC_startConversion(ADC_BASE, ADC_REPEATED_SINGLECHANNEL);
 
-     ADC_startConversion(ADC_BASE, ADC_REPEATED_SINGLECHANNEL);
+			unsigned int v = 0;
+		 	if ( adcvalue==v ) 
+		 		{
+		 			__delay_cycles(80000/5);				//	延时100ms	 ;Delay for 80000*(1/MCLK)=0.5s 
+		 			continue;												//  旋钮没动，继续测试又没动
+		 		}
+			//  动了
+ 			do{
+				v=adcvalue;
+     		ADC_startConversion(ADC_BASE, ADC_REPEATED_SINGLECHANNEL);
+				__delay_cycles(80000/10);
+				if (adcvalue< min_adc )
+        	min_adc = adcvalue;
+      	if (adcvalue>max_adc)
+        	max_adc = adcvalue;
+			}while(adcvalue!=v);							//  有变，是连续在转，不管，继续读ADC
 
+			//  应该是停下来了，重新计算步长；计算好一周期抽样数
+			//  &&&
+			cflag++;
+			idx=0;														//  频率要变化，总是从0重新开始；
+			state &=0xfffe;										//  从上半周期开始			
+			step = (v-min_adc)*Multi_N/(max_adc-min_adc) +1;
+      step = step >Multi_N ? Multi_N : step;
 
-
+			qsamples =  (MAX_SAMPLES/step)>>2;						//  1/4个周期的抽样数
+			hsamples = qsamples>1;
+			samples = hsamples<<1;												//  一个周期的抽样数，为4的倍数；
+			for ( i=0;i<=qsamples;i++)
+				{
+				sin_tab[i]=sin(i*PI/2/qsamples)*STD_CCR;		//   计算sin表
+				}
+			cflag--;
+			//  
     }
 
-     return 0;
 }
 
 // ADC interrupt service routine
-#pragma vector=ADC_VECTOR           // these two lines are used by IAR and CCC
+#pragma vector=ADC_VECTOR           				// these two lines are used by IAR and CCC
 __interrupt void ADC_ISR(void)
 {
   switch(__even_in_range(ADCIV,ADCIV_ADCIFG))
   {
-    case ADCIV_ADCIFG:              // conversion complete
-        {
-        // sample = ADCMEM0;
+    case ADCIV_ADCIFG:              				// conversion complete
+        {      
     		adcvalue = ADCMEM0;
-        if (adcvalue< min_adc )
-        	min_adc = adcvalue;
-        if (adcvalue>max_adc)
-        	max_adc = adcvalue;
-  //      sample = (int)18000*((float)adcvalue)/((float)1023);   //default 360
- //       ta = ((float)adcvalue)/((float)1023);
- //       samples = sample/1;
-        if ( sample <= 120 )                              // 1下面有个死区？
-        	sample = 120;
-
-         break;
-        }
+        break;
+        }          
   }
-
+  
   ADC_clearInterrupt(ADC_BASE, ADC_COMPLETED_INTERRUPT);
 }
 
@@ -136,242 +170,27 @@ __interrupt void ADC_ISR(void)
 #pragma vector = TIMER0_A0_VECTOR
 __interrupt void TIMERA0_ISR0(void) //Flag cleared automatically
 {
- 
-  static int setccr ;			// 当前用于设置的CCR值,   0表示占空比100%， 等于MAX_CCR时，占空比为0%																	
-  static unsigned int i=0;			// 	抽样计数 ,  i==samples时， 满一个周期  
-  
-  if(i*2 < sample) 			        //  上半周期
-  {
-	TA0CCR1 = setccr;
-        TA0CCR2 = 0;				
+		if( cflag)	//  频率调整，锁定；  
+                   TA0CCR0=  curr_ccr; 
+			return;       //break ？
+
+		if(  state &0x0001 == 0 ) 		//偶数	最后一位为0	上半周期											//  上半周期
+			{
+					TA0CCR1 = sin_tab[idx>qsamples? hsamples-idx:idx];
+					TA0CCR2 = 0;
     	}
     else {
-    	TA0CCR1 = 0;
-    	TA0CCR2 = -1*setccr;
+    		TA0CCR1 = 0;
+ 				TA0CCR2 = sin_tab[idx>qsamples ? hsamples-idx : idx ];			
     	}
     
-    if(++i >= sample)
-     i = 0;
-  
-    setccr = ((int)(2664* sin(i*2*PI/sample) ));
-    TA0CCR0=  2664;
-//  setccr =444- ((int)(444* sin(i*2*PI/sample) ));	
-//  tb= i*2*PI/sample ;	
-//  tc = sin( i*2*PI/sample );	
-
-//  TA0CCR1= sine[j];
-////    TA0CCR2= sinee[j];
-//
-//    TA0CCR2 = sample;
-//
-//    if(++j == 360)
-//    {
-//     j = 0;
-//    }
-//
-//    TA0CCR0= 889;
+	  ++idx;	
+	  if ( idx >= hsamples )		// 是否到达半周期
+			{
+			idx = idx-hsamples;
+			state++;								//  反转  偶数/奇数  -- 上半周期/下半周期
+			}					
+			
+	TA0CCR0=  curr_ccr;		
+										
 }
-
-
-//#pragma vector = TIMER0_A1_VECTOR
-//__interrupt void TIMERA0_ISR1(void)
-//{
-//switch(__even_in_range(TA0IV,10)) //Clears the flag
-//  {
-//       //Cases outlined in previous slide.
-//  case 2:
-//    //ADCCTL0|=ADCENC|ADCSC; //sampling start
-//
-//    TA0CCR1= sine[j];
-//   // TA0CCR2=  sinee[j];
-//    if(++j == 360)
-//    {
-//     j = 0;
-//    }
-////    break;
-////  case 4:
-////    TA0CCR2=sinee[i];
-////    if(++i == 360)
-////    {
-////     i = 0;
-////    }
-////    break;
-//  }
-//// //  TA0IV = 0;
-//  Timer_A_clearTimerInterrupt(TIMER_A1_BASE);
-//}
-
-///**************************************************
-// * 19.496 Project
-// *
-// * Copyright 2015 University of Strathclyde
-// **************************************************/
-//#include <msp430.h>
-//#include <driverlib.h>
-//#include "adc.h"
-//
-//unsigned int i=0;
-//unsigned int j=0;
-////unsigned int a=0;
-//unsigned int sample= 50;
-//
-//unsigned int sine[361]={ 0, 0, 15,30,46,61,77,92,108,123,138,154,169,184,199,214,
-//229,244,259,274,289,303,318,332,346,361,375,389,403,416,430,
-//443,457,470,483,496,509,521,534,546,558,570,582,594,605,616,
-//627,638,649,659,670,680,690,699,709,718,727,736,744,753,761,
-//769,776,784,791,798,804,811,817,823,829,834,839,844,849,853,
-//857,861,865,868,871,874,877,879,881,883,884,885,886,887,887,
-//888,887,887,886,885,884,883,881,879,877,874,871,868,865,861,
-//857,853,849,844,839,834,829,823,817,811,804,798,791,784,776,
-//769,761,753,744,736,727,718,709,699,690,680,670,659,649,638,
-//627,616,605,594,582,570,558,546,534,521,509,496,483,470,457,
-//443,430,416,403,389,375,361,346,332,318,303,289,274,259,244,
-//229,214,199,184,169,154,138,123,108,92,77,61,46,30,15,
-//0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-//0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-//0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-//0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-//0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-//0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-//0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-//0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-//0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-//0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-//0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-//0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 };
-//
-//unsigned int sinee[361]={ 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-//0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-//0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-//0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-//0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-//0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-//0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-//0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-//0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-//0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-//0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-//0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,
-//0, 15,30,46,61,77,92,108,123,138,154,169,184,199,214,
-//229,244,259,274,289,303,318,332,346,361,375,389,403,416,430,
-//443,457,470,483,496,509,521,534,546,558,570,582,594,605,616,
-//627,638,649,659,670,680,690,699,709,718,727,736,744,753,761,
-//769,776,784,791,798,804,811,817,823,829,834,839,844,849,853,
-//857,861,865,868,871,874,877,879,881,883,884,885,886,887,887,
-//888,887,887,886,885,884,883,881,879,877,874,871,868,865,861,
-//857,853,849,844,839,834,829,823,817,811,804,798,791,784,776,
-//769,761,753,744,736,727,718,709,699,690,680,670,659,649,638,
-//627,616,605,594,582,570,558,546,534,521,509,496,483,470,457,
-//443,430,416,403,389,375,361,346,332,318,303,289,274,259,244,
-//229,214,199,184,169,154,138,123,108,92,77,61,46,30,15};
-//
-//void PWM_setUp()
-//{
-// //TA0.1 TA0.2
-//   TA0CTL |= TASSEL_2+MC_1+TACLR;//+TAIE;              //SMCLK, Up mode: Timer counts up to TAxCCR0
-//   TA0CCR0=  888;                       
-//   
-//   TA0CCTL1 |= OUTMOD_7;//+CCIE;                          //Capture/compare interrupt enable. This bit enables the interrupt request of the corresponding CCIFG flag.
-//   TA0CCTL2 |= OUTMOD_7;//+CCIE;  
-//   TA0CCTL0 |= OUTMOD_7+CCIE;
-//   
-//   P1DIR |= BIT7+BIT6;                          
-//   P1SEL0 |= BIT7+BIT6; 
-//}
-//
-//int main(void)
-//{
-//    WDTCTL = WDTPW | WDTHOLD;                          // Stop watchdog timer
-//
-//    // Configure one FRAM waitstate as required by the device datasheet for MCLK
-//    // operation beyond 8MHz _before_ configuring the clock system.
-//    FRCTL0 = FRCTLPW | NWAITS_1;
-//
-//    __bis_SR_register(SCG0);                           // disable FLL
-//    CSCTL3 |= SELREF__REFOCLK;                         // Set REFO as FLL reference source
-//    CSCTL0 = 0;                                        // clear DCO and MOD registers
-//    CSCTL1 &= ~(DCORSEL_7);                            // Clear DCO frequency select bits first
-//    CSCTL1 |= DCORSEL_5;                               // Set DCO = 16MHz
-//    CSCTL2 = FLLD_0 + 487;                             // DCOCLKDIV = 16MHz
-//    __delay_cycles(3);  
-//    __bic_SR_register(SCG0);                           // enable FLL
-//    while(CSCTL7 & (FLLUNLOCK0 | FLLUNLOCK1));         // FLL locked
-//    
-//    CSCTL4 |= SELMS__DCOCLKDIV | SELA__REFOCLK;        // set default REFO(~32768Hz) as ACLK source, ACLK = 32768Hz
-//                                                       // default DCOCLKDIV as MCLK and SMCLK source
-//
-//    P1DIR |= BIT0 | BIT4;                              // set MCLK and LED pin as output
-//    P1SEL0 |= BIT4;                                    // set MCLK pin as second function
-//    P8DIR |= BIT0 | BIT1;                              // set ACLK and SMCLK pin as output
-//    P8SEL0 |= BIT0 | BIT1;                             // set ACLK and SMCLK pin as second function
-//
-//    //GPIO 8.1
-//  GPIO_setAsPeripheralModuleFunctionInputPin(GPIO_PORT_P8, GPIO_PIN1, GPIO_PRIMARY_MODULE_FUNCTION);
-////        SYSCFG2 |= ADCPCTL9;  
-//    
-//    
-//    PM5CTL0 &= ~LOCKLPM5;                              // Disable the GPIO power-on default high-impedance mode
-////  PMM_unlockLPM5();                                  // to activate previously configured port settings
-//   
-//    PWM_setUp();   // suqare wave frequency: 1M--450 ,8M--3.4K, 16M--6.9kHz 
-//
-//   ADC_init(ADC_BASE,
-//            ADC_SAMPLEHOLDSOURCE_SC,
-//            ADC_CLOCKSOURCE_ADCOSC,
-//            ADC_CLOCKDIVIDER_1);
-//   ADC_enable(ADC_BASE); 
-//   ADC_enableInterrupt(ADC_BASE,ADC_COMPLETED_INTERRUPT);
-//   ADC_clearInterrupt(ADC_BASE,ADC_COMPLETED_INTERRUPT);
-//   ADC_setupSamplingTimer(ADC_BASE, ADC_CYCLEHOLD_4_CYCLES, ADC_MULTIPLESAMPLESDISABLE);
-//   ADC_configureMemory(ADC_BASE,
-//                       ADC_INPUT_A9,
-//                       ADC_VREFPOS_AVCC,
-//                       ADC_VREFNEG_AVSS);
-//    
-//    __enable_interrupt();
-// 
-////   //ADC P8.1 A9 
-////   GPIO_setAsPeripheralModuleFunctionInputPin(GPIO_PORT_P8, GPIO_PIN1, GPIO_PRIMARY_MODULE_FUNCTION);
-//  
-//    while(1)
-//    {
-////        P1OUT ^= BIT0;                                 // Toggle P1.0 using exclusive-OR
-////        __delay_cycles(8000000);                       // Delay for 80000*(1/MCLK)=0.5s
-//      
-//      ADC_startConversion(ADC_BASE, ADC_REPEATED_SINGLECHANNEL);
-//      
-//    }
-//    
-//     return 0;
-//}
-//
-//// ADC interrupt service routine
-//#pragma vector=ADC_VECTOR           // these two lines are used by IAR and CCC
-//__interrupt void ADC_ISR(void)
-//{
-//  switch(__even_in_range(ADCIV,ADCIV_ADCIFG))
-//  {
-//    case ADCIV_ADCIFG:              // conversion complete
-//        {      
-//         sample = ADCMEM0;
-//         break;
-//        }          
-//  }
-//  
-//  ADC_clearInterrupt(ADC_BASE, ADC_COMPLETED_INTERRUPT);
-//}
-//
-// //On the compare of TA0CCTL0
-//#pragma vector = TIMER0_A0_VECTOR
-//__interrupt void TIMERA0_ISR0(void) //Flag cleared automatically
-//{
-//    TA0CCR1= sine[j];
-//    TA0CCR2= sinee[j];
-//    
-//    if(++j == 360)
-//    {
-//     j = 0;
-//    }
-//    
-//    TA0CCR0= 888;
-//}
