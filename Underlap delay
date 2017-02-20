@@ -36,12 +36,11 @@ void PWM_setUp()
   
    TA0CCTL1 |= OUTMOD_6;//+CCIE;       // CCR1 toggle/set                   
    TA0CCTL2 |= OUTMOD_2;//+CCIE;       // CCR2 toggle/reset
-   TA0CCTL0 |= OUTMOD_7+CCIE;          //Capture/compare interrupt enable. This bit enables the interrupt request of the corresponding CCIFG flag.
+   TA0CCTL0 |= OUTMOD_6+CCIE;          //Capture/compare interrupt enable. This bit enables the interrupt request of the corresponding CCIFG flag.
 
-   TA0CCR0 = 625;                     // PWM frequency 12.8kHz？ ---示波器检测PWM频率为6.369kHz
-   TA0CCR1 = 625;      //P1.7 Low
-   TA0CCR2 = 600;      // P1.6 high      Dead time= CCR1-CCR2=625-600 =25 
-}
+   TA0CCR0 = 625;                     // PWM frequency 12.8kHz？ ---示波器检测PWM频率为12.76kHz (78.4us)
+   TA0CCR1 = 312;      //P1.7 Low
+   TA0CCR2 = 300;      // P1.6 high      Dead time= CCR1-CCR2=312-300 =12(单边）  --- 748ns /period
 
 int main(void)
 {
@@ -136,6 +135,5 @@ __interrupt void ADC_ISR(void)
 __interrupt void TIMERA0_ISR0(void) //Flag cleared automatically
 {
  
-   TA0CCR0= 1250;     //一定要有 才能正确持续中断
+   TA0CCR0 =625;     //一定要有 才能正确持续中断
 }
-
