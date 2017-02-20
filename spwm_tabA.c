@@ -10,29 +10,29 @@
 
 #define  PI  						3.1415926535897932384626
  		
-#define  MIN_RATE    		5															//  ¿ÉĞŞ¸Ä
-#define  MAX_RATE    		50														//  ¿ÉĞŞ¸Ä
+#define  MIN_RATE    		5															//  å¯ä¿®æ”¹
+#define  MAX_RATE    		50														//  å¯ä¿®æ”¹
 
-#define  MIN_SAMPLES		256														//  50Hz²¨ĞÎÊ±Ò»ÖÜÆÚ³éÑù256´Î
-#define  Multi_N				(MAX_RATE/MIN_RATE)						//  ×î´ó³éÑù±¶Êı   »ùÊıÎªSTD_CCR  
-#define  STD_CCR				1250													//	1250ÊÇÒ»ÖÜÆÚ     UP/DOWN Ä£Ê½ÏÂ±È½ÏCCR×î´ó1250/2
-#define  MAX_SAMPLES    (MIN_SAMPLES*Multi_N)					//  Ò»ÖÜÆÚ×î´ó³éÑùÊı
+#define  MIN_SAMPLES		256														//  50Hzæ³¢å½¢æ—¶ä¸€å‘¨æœŸæŠ½æ ·256æ¬¡
+#define  Multi_N				(MAX_RATE/MIN_RATE)						//  æœ€å¤§æŠ½æ ·å€æ•°   åŸºæ•°ä¸ºSTD_CCR  
+#define  STD_CCR				1250				//	1250æ˜¯ä¸€å‘¨æœŸ     UP/DOWN æ¨¡å¼ä¸‹æ¯”è¾ƒCCRæœ€å¤§1250/2
+#define  MAX_SAMPLES    (MIN_SAMPLES*Multi_N)					//  ä¸€å‘¨æœŸæœ€å¤§æŠ½æ ·æ•°
 
-unsigned int sin_tab[MIN_SAMPLES/4 *Multi_N+1];				//  ×îĞ¡ÆµÂÊ(1Hz)Ê±³éÑùÊı£¬  Ò»¸öÖÜÆÚÖ»ĞèÒª1/4ÖÜÆÚÊı¾İ¼´¿ÉÂú×ã¼ÆËã	
-unsigned int step=Multi_N;														//  È±Ê¡ 50Hz Ê±²½³¤¡¾±¾³ÌĞòËã·¨Î´ÓÃµ½¡¿
+unsigned int sin_tab[MIN_SAMPLES/4 *Multi_N+1];				//  æœ€å°é¢‘ç‡(1Hz)æ—¶æŠ½æ ·æ•°ï¼Œ  ä¸€ä¸ªå‘¨æœŸåªéœ€è¦1/4å‘¨æœŸæ•°æ®å³å¯æ»¡è¶³è®¡ç®—	
+unsigned int step=Multi_N;														//  ç¼ºçœ 50Hz æ—¶æ­¥é•¿ã€æœ¬ç¨‹åºç®—æ³•æœªç”¨åˆ°ã€‘
 
-unsigned int samples = MIN_SAMPLES;										// È±Ê¡Ò»ÖÜÆÚ³éÑùÊı£¬Ëæ×ÅĞıÅ¥×ª¶¯±ä»¯£¬
-unsigned int hsamples = MIN_SAMPLES>>1;								// PI--°ëÖÜÆÚ³éÑùÊı
-unsigned int qsamples = MIN_SAMPLES>>2;								// PI/2 --1/4 ÖÜÆÚ³éÑùÊı
+unsigned int samples = MIN_SAMPLES;							// ç¼ºçœä¸€å‘¨æœŸæŠ½æ ·æ•°ï¼Œéšç€æ—‹é’®è½¬åŠ¨å˜åŒ–ï¼Œ
+unsigned int hsamples = MIN_SAMPLES>>1;						        // PI--åŠå‘¨æœŸæŠ½æ ·æ•°
+unsigned int qsamples = MIN_SAMPLES>>2;							// PI/2 --1/4 å‘¨æœŸæŠ½æ ·æ•°
 		
-unsigned int min_adc = 256;														// ÉèÖÃÁË³õÊ¼Öµ£¬ÔÚÔËĞĞÖĞ½øĞĞµ÷Õû
-unsigned int max_adc = 960;														// ÉèÖÃÁË³õÊ¼Öµ£¬ÔÚÔËĞĞÖĞ½øĞĞµ÷Õû
-unsigned int adcvalue;																//  ÓÃÓÚ´æ·Å¶Á½øÀ´µÄadcÖµ
-unsigned int curr_ccr=STD_CCR;												//  µ±Ç° TA0CCR0  ±¾Ëã·¨Î´±ä¶¯ TA0CCR0
+unsigned int min_adc = 256;														// è®¾ç½®äº†åˆå§‹å€¼ï¼Œåœ¨è¿è¡Œä¸­è¿›è¡Œè°ƒæ•´
+unsigned int max_adc = 960;														// è®¾ç½®äº†åˆå§‹å€¼ï¼Œåœ¨è¿è¡Œä¸­è¿›è¡Œè°ƒæ•´
+unsigned int adcvalue;																//  ç”¨äºå­˜æ”¾è¯»è¿›æ¥çš„adcå€¼
+unsigned int curr_ccr=STD_CCR;					//  å½“å‰ TA0CCR0  æœ¬ç®—æ³•æœªå˜åŠ¨ TA0CCR0
 
-unsigned int idx=0;																		// 	ÏÂÒ»¸ö³éÑùÎ»ÖÃË÷Òı£¬×´Ì¬±£³Ö×Å ,  idx×î´óÖµÎªsamples/2 
-unsigned int state=0;																	//  ³éÑùµãidxÔÚSIN²¨ÇøÓò£¬Å¼Êı±íÊ¾ÔÚÉÏ°ëÖÜÆÚ£¬ÆæÊı±íÊ¾Î»ÓÚÏÂ°ëÖÜÆÚ
-unsigned int cflag=0;																	//  ÕıÔÚĞŞ¸Äµ÷Æµ²ÎÊı±êÖ¾
+unsigned int idx=0;			// 	ä¸‹ä¸€ä¸ªæŠ½æ ·ä½ç½®ç´¢å¼•ï¼ŒçŠ¶æ€ä¿æŒç€ ,  idxæœ€å¤§å€¼ä¸ºsamples/2 
+unsigned int state=0;			//  æŠ½æ ·ç‚¹idxåœ¨SINæ³¢åŒºåŸŸï¼Œå¶æ•°è¡¨ç¤ºåœ¨ä¸ŠåŠå‘¨æœŸï¼Œå¥‡æ•°è¡¨ç¤ºä½äºä¸‹åŠå‘¨æœŸ
+unsigned int cflag=0;			//  æ­£åœ¨ä¿®æ”¹è°ƒé¢‘å‚æ•°æ ‡å¿—
 
 void PWM_setUp()
 {
@@ -97,14 +97,14 @@ int main(void)
             ADC_VREFPOS_AVCC,
             ADC_VREFNEG_AVSS);
     
-		//   Ò»ÏÂ³õÊ¼»¯ sin_tab ,±íµÄÖµÒÔ  SPWM Îª50Hz£¬³éÑùÊıÎªMIN_SAMPLESÇé¿öÏÂ CCR0µÄÖµÎªÀ¶±¾
+		//   ä¸€ä¸‹åˆå§‹åŒ– sin_tab ,è¡¨çš„å€¼ä»¥  SPWM ä¸º50Hzï¼ŒæŠ½æ ·æ•°ä¸ºMIN_SAMPLESæƒ…å†µä¸‹ CCR0çš„å€¼ä¸ºè“æœ¬
 		//	 
 		//		
 
 	  int i;
 	  
 	  for ( i =0;i<=MAX_SAMPLES/4;i++)
-	  		sin_tab[i] = sin(i*PI*2/MAX_SAMPLES)*STD_CCR;			// ³õÊ¼»¯sin_tab ±í¸ñ  ÓÃSTD_CCR À´Ëã£¬¾ßÌåÓÃÊ±ĞŞÕı
+	  		sin_tab[i] = sin(i*PI*2/MAX_SAMPLES)*STD_CCR;			// åˆå§‹åŒ–sin_tab è¡¨æ ¼  ç”¨STD_CCR æ¥ç®—ï¼Œå…·ä½“ç”¨æ—¶ä¿®æ­£
 
     __enable_interrupt();
  
@@ -118,10 +118,10 @@ int main(void)
 			unsigned int v = 0;
 		 	if ( adcvalue==v ) 
 		 		{
-		 			__delay_cycles(80000/5);				//	ÑÓÊ±100ms	 ;Delay for 80000*(1/MCLK)=0.5s 
-		 			continue;												//  ĞıÅ¥Ã»¶¯£¬¼ÌĞø²âÊÔÓÖÃ»¶¯
+		 			__delay_cycles(80000/5);				//	å»¶æ—¶100ms	 ;Delay for 80000*(1/MCLK)=0.5s 
+		 			continue;												//  æ—‹é’®æ²¡åŠ¨ï¼Œç»§ç»­æµ‹è¯•åˆæ²¡åŠ¨
 		 		}
-			//  ¶¯ÁË
+			//  åŠ¨äº†
  			do{
 				v=adcvalue;
      		ADC_startConversion(ADC_BASE, ADC_REPEATED_SINGLECHANNEL);
@@ -130,22 +130,22 @@ int main(void)
         	min_adc = adcvalue;
       	if (adcvalue>max_adc)
         	max_adc = adcvalue;
-			}while(adcvalue!=v);							//  ÓĞ±ä£¬ÊÇÁ¬ĞøÔÚ×ª£¬²»¹Ü£¬¼ÌĞø¶ÁADC
+			}while(adcvalue!=v);							//  æœ‰å˜ï¼Œæ˜¯è¿ç»­åœ¨è½¬ï¼Œä¸ç®¡ï¼Œç»§ç»­è¯»ADC
 
-			//  Ó¦¸ÃÊÇÍ£ÏÂÀ´ÁË£¬ÖØĞÂ¼ÆËã²½³¤£»¼ÆËãºÃÒ»ÖÜÆÚ³éÑùÊı
+			//  åº”è¯¥æ˜¯åœä¸‹æ¥äº†ï¼Œé‡æ–°è®¡ç®—æ­¥é•¿ï¼›è®¡ç®—å¥½ä¸€å‘¨æœŸæŠ½æ ·æ•°
 			//  &&&
 			cflag++;
-			idx=0;														//  ÆµÂÊÒª±ä»¯£¬×ÜÊÇ´Ó0ÖØĞÂ¿ªÊ¼£»
-			state &=0xfffe;										//  ´ÓÉÏ°ëÖÜÆÚ¿ªÊ¼			
+			idx=0;														//  é¢‘ç‡è¦å˜åŒ–ï¼Œæ€»æ˜¯ä»0é‡æ–°å¼€å§‹ï¼›
+			state &=0xfffe;										//  ä»ä¸ŠåŠå‘¨æœŸå¼€å§‹			
 			step = (v-min_adc)*Multi_N/(max_adc-min_adc) +1;
       step = step >Multi_N ? Multi_N : step;
 
-			qsamples =  (MAX_SAMPLES/step)>>2;						//  1/4¸öÖÜÆÚµÄ³éÑùÊı
+			qsamples =  (MAX_SAMPLES/step)>>2;						//  1/4ä¸ªå‘¨æœŸçš„æŠ½æ ·æ•°
 			hsamples = qsamples>1;
-			samples = hsamples<<1;												//  Ò»¸öÖÜÆÚµÄ³éÑùÊı£¬Îª4µÄ±¶Êı£»
+			samples = hsamples<<1;												//  ä¸€ä¸ªå‘¨æœŸçš„æŠ½æ ·æ•°ï¼Œä¸º4çš„å€æ•°ï¼›
 			for ( i=0;i<=qsamples;i++)
 				{
-				sin_tab[i]=sin(i*PI/2/qsamples)*STD_CCR;		//   ¼ÆËãsin±í
+				sin_tab[i]=sin(i*PI/2/qsamples)*STD_CCR;		//   è®¡ç®—sinè¡¨
 				}
 			cflag--;
 			//  
@@ -173,26 +173,26 @@ __interrupt void ADC_ISR(void)
 #pragma vector = TIMER0_A0_VECTOR
 __interrupt void TIMERA0_ISR0(void) //Flag cleared automatically
 {
-		if( cflag)							//  ÆµÂÊµ÷Õû£¬Ëø¶¨£»
+		if( cflag)							//  é¢‘ç‡è°ƒæ•´ï¼Œé”å®šï¼›
 			return;
 
-		if(  state &0x0001 == 0 ) 															//  ÉÏ°ëÖÜÆÚ
-			{
-					TA0CCR1 = sin_tab[idx>qsamples? hsamples-idx:idx];
-					TA0CCR2 = 0;
+		if(  state &0x0001 == 0 ) 				//  ä¸ŠåŠå‘¨æœŸ
+		{
+			TA0CCR1 = sin_tab[idx>qsamples? hsamples-idx:idx];   
+			TA0CCR2 = 0;
     	}
-    else {
+    else {    
     		TA0CCR1 = 0;
- 				TA0CCR2 = sin_tab[idx>qsamples ? hsamples-idx : idx ];			
+ 		TA0CCR2 = sin_tab[idx>qsamples ? hsamples-idx : idx ];			
     	}
     
 	  ++idx;	
-	  if ( idx >= hsamples )		// ÊÇ·ñµ½´ï°ëÖÜÆÚ
+	  if ( idx >= hsamples )		// æ˜¯å¦åˆ°è¾¾åŠå‘¨æœŸ
 			{
 			idx = idx-hsamples;
-			state++;								//  ·´×ª  Å¼Êı/ÆæÊı  -- ÉÏ°ëÖÜÆÚ/ÏÂ°ëÖÜÆÚ
+			state++;								//  åè½¬  å¶æ•°/å¥‡æ•°  -- ä¸ŠåŠå‘¨æœŸ/ä¸‹åŠå‘¨æœŸ
 			}					
 			
 			
-			//ĞèÒªÇå³ıÖĞ¶ÏÂğ£¿&&&							
+			//éœ€è¦æ¸…é™¤ä¸­æ–­å—ï¼Ÿ&&&							
 }
