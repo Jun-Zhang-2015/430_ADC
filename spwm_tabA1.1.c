@@ -21,7 +21,7 @@
 
 unsigned int sin_tab[MIN_SAMPLES/4 *Multi_N+1];				//  最小频率(1Hz)时抽样数，  一个周期只需要1/4周期数据即可满足计算	
 unsigned int step=Multi_N;														//  缺省 50Hz 时步长【本程序算法未用到】
-unsigned float ma=1.000000;								//  modulation index
+unsigned int ma=1;								//  modulation index
 
 unsigned int samples = MIN_SAMPLES;										// 缺省一周期抽样数，随着旋钮转动变化，
 unsigned int hsamples = MIN_SAMPLES>>1;								// PI--半周期抽样数
@@ -40,12 +40,13 @@ unsigned int cflag=0;																	//  正在修改调频参数标志
 void PWM_setUp()
 {
  //TA0.1 TA0.2
-   TA0CTL |= TASSEL_2+MC_1+TACLR;//+TAIE;             //SMCLK, Up mode: Timer counts up to TAxCCR0
+   TA0CTL |= TASSEL_2 +TACLR;//+TAIE;             //SMCLK, Up mode: Timer counts up to TAxCCR0
    TA0CCR0=  STD_CCR;                       //1250
    
    TA0CCTL1 |= OUTMOD_7;//+CCIE;                      //Capture/compare interrupt enable. This bit enables the interrupt request of the corresponding CCIFG flag.
    TA0CCTL2 |= OUTMOD_7;//+CCIE;  
    TA0CCTL0 |= OUTMOD_7+CCIE;
+   TA0CTL |= MC_1;
    
    P1DIR |= BIT7+BIT6;                          
    P1SEL0 |= BIT7+BIT6; 
@@ -77,11 +78,7 @@ int main(void)
     P1DIR |= BIT0 | BIT4;                              // set MCLK and LED pin as output
     P1SEL0 |= BIT4;                                    // set MCLK pin as second function
     P8DIR |= BIT0 | BIT1;                              // set ACLK and SMCLK pin as output
-    P8SEL0 |= BIT0 | BIT1;                             // set ACLK and SMCLK pin as second function
-
-    //GPIO 8.1
-  	GPIO_setAsPeripheralModuleFunctionInputPin(GPIO_PORT_P8, GPIO_PIN1, GPIO_PRIMARY_MODULE_FUNCTION);
-//        SYSCFG2 |= ADCPCTL9;  
+    P8SEL0 |= BIT0 | BIT1;                             // set ACLK and SMCLK pin as second function  
     
     
     PM5CTL0 &= ~LOCKLPM5;                              // Disable the GPIO power-on default high-impedance mode
@@ -89,18 +86,34 @@ int main(void)
    
     PWM_setUp();   
 
-   	ADC_init(ADC_BASE,
-            ADC_SAMPLEHOLDSOURCE_SC,
-            ADC_CLOCKSOURCE_ADCOSC,
-            ADC_CLOCKDIVIDER_1);
-   	ADC_enable(ADC_BASE); 
-   	ADC_enableInterrupt(ADC_BASE,ADC_COMPLETED_INTERRUPT);
-   	ADC_clearInterrupt(ADC_BASE,ADC_COMPLETED_INTERRUPT);
-   	ADC_setupSamplingTimer(ADC_BASE, ADC_CYCLEHOLD_4_CYCLES, ADC_MULTIPLESAMPLESDISABLE);
-   	ADC_configureMemory(ADC_BASE,
-            ADC_INPUT_A9,               //A8能用吗
-            ADC_VREFPOS_AVCC,
-            ADC_VREFNEG_AVSS);
+//   	ADC_init(ADC_BASE,
+//            ADC_SAMPLEHOLDSOURCE_SC,
+//            ADC_CLOCKSOURCE_ADCOSC,
+//            ADC_CLOCKDIVIDER_1);
+//   	ADC_enable(ADC_BASE); 
+//   	ADC_enableInterrupt(ADC_BASE,ADC_COMPLETED_INTERRUPT);
+//   	ADC_clearInterrupt(ADC_BASE,ADC_COMPLETED_INTERRUPT);
+//   	ADC_setupSamplingTimer(ADC_BASE, ADC_CYCLEHOLD_4_CYCLES, ADC_MULTIPLESAMPLESDISABLE);
+//   	ADC_configureMemory(ADC_BASE,
+//            ADC_INPUT_A5,               //A8能用吗
+//            ADC_VREFPOS_AVCC,
+//            ADC_VREFNEG_AVSS);
+    ADCCTL0 |= ADCSHT_0 + ADCON + ADCMSC;
+    ADCCTL1 |= ADCSHS_2 + ADCSSEL_2 + ADCCONSEQ_2 + ADCSHP;
+    ADCCTL2 |= ADCRES;
+    ADCMCTL0 |= ADCINCH_5;
+    ADCIE |= ADCIE0;
+    ADCCTL0 |= ADCENC;
+    
+    TA1CTL |= TASSEL_1 + TACLR;
+    TA1CCTL1 |= OUTMOD_7;
+    TA1CCR0 = 1638;
+    TA1CCR1 = 800;
+    TA1CTL |= MC_2;
+    P4DIR |= BIT0;
+    P4SEL0 |= BIT0;
+      
+    
     
 //   sin_tab[]  清零
 //	 不用初始化，总是要	 
@@ -114,7 +127,7 @@ int main(void)
     {
      	
      	do{     
-     		ADC_startConversion(ADC_BASE, ADC_REPEATED_SINGLECHANNEL);       //放里面还是外面？                              
+     		//ADC_startConversion(ADC_BASE, ADC_REPEATED_SINGLECHANNEL);       //放里面还是外面？                              
 	     if ( abs(adcvalue-v)<2 )         //防抖容错            
 		 {
 		 	__delay_cycles(8000000/20);				//	延时25ms	 ; 8000000*(1/MCLK)=0.5s 
@@ -125,7 +138,7 @@ int main(void)
 			//  动了
  	    do{
 				v=adcvalue;
-     		ADC_startConversion(ADC_BASE, ADC_REPEATED_SINGLECHANNEL);
+     		//ADC_startConversion(ADC_BASE, ADC_REPEATED_SINGLECHANNEL);
 				__delay_cycles(8000000/20);					//  等25ms  直到ADC值停止改变                         
 		    if (adcvalue< min_adc )
         	         min_adc = adcvalue;
@@ -167,7 +180,7 @@ __interrupt void ADC_ISR(void)
   {
     case ADCIV_ADCIFG:              				// conversion complete
         {      
-    		adcvalue = ADCMEM0;
+            adcvalue = ADCMEM0;
         break;
         }          
   }
@@ -200,4 +213,3 @@ __interrupt void TIMERA0_ISR0(void) //Flag cleared automatically
 
 
 }
-
