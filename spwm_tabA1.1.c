@@ -80,6 +80,8 @@ int main(void)
     P8DIR |= BIT0 | BIT1;                              // set ACLK and SMCLK pin as output
     P8SEL0 |= BIT0 | BIT1;                             // set ACLK and SMCLK pin as second function  
     
+        //GPIO 8.1
+  GPIO_setAsPeripheralModuleFunctionInputPin(GPIO_PORT_P1, GPIO_PIN5, GPIO_PRIMARY_MODULE_FUNCTION);
     
     PM5CTL0 &= ~LOCKLPM5;                              // Disable the GPIO power-on default high-impedance mode
 //  PMM_unlockLPM5();                                  // to activate previously configured port settings
@@ -98,11 +100,14 @@ int main(void)
 //            ADC_INPUT_A5,               //A8能用吗
 //            ADC_VREFPOS_AVCC,
 //            ADC_VREFNEG_AVSS);
-    ADCCTL0 |= ADCSHT_0 + ADCON + ADCMSC;
-    ADCCTL1 |= ADCSHS_2 + ADCSSEL_2 + ADCCONSEQ_2 + ADCSHP;
+    
+        
+    ADCCTL0 |= ADCSHT_1 + ADCON + ADCMSC;
+    ADCCTL1 |= ADCSSEL_2 + ADCCONSEQ_2 + ADCSHS_2;
     ADCCTL2 |= ADCRES;
     ADCMCTL0 |= ADCINCH_5;
     ADCIE |= ADCIE0;
+   SYSCFG2 |= ADCPCTL5;
     ADCCTL0 |= ADCENC;
     
     TA1CTL |= TASSEL_1 + TACLR;
@@ -127,7 +132,7 @@ int main(void)
     {
      	
      	do{     
-     		//ADC_startConversion(ADC_BASE, ADC_REPEATED_SINGLECHANNEL);       //放里面还是外面？                              
+     		ADC_startConversion(ADC_BASE, ADC_REPEATED_SINGLECHANNEL);       //放里面还是外面？                              
 	     if ( abs(adcvalue-v)<2 )         //防抖容错            
 		 {
 		 	__delay_cycles(8000000/20);				//	延时25ms	 ; 8000000*(1/MCLK)=0.5s 
@@ -138,7 +143,7 @@ int main(void)
 			//  动了
  	    do{
 				v=adcvalue;
-     		//ADC_startConversion(ADC_BASE, ADC_REPEATED_SINGLECHANNEL);
+     		ADC_startConversion(ADC_BASE, ADC_REPEATED_SINGLECHANNEL);
 				__delay_cycles(8000000/20);					//  等25ms  直到ADC值停止改变                         
 		    if (adcvalue< min_adc )
         	         min_adc = adcvalue;
@@ -156,6 +161,7 @@ int main(void)
 			step = (v-min_adc)*Multi_N/(max_adc-min_adc) +1;
       if(step > Multi_N)
       	step = Multi_N;
+      
 	qsamples =  (MAX_SAMPLES/step)>>2;				//  1/4个周期的抽样数,取4的倍数
 	hsamples = qsamples<<1;
 	samples = hsamples<<1;						//  确保一个周期的抽样数，为4的倍数；              
@@ -179,8 +185,8 @@ __interrupt void ADC_ISR(void)
   switch(__even_in_range(ADCIV,ADCIV_ADCIFG))
   {
     case ADCIV_ADCIFG:              				// conversion complete
-        {      
-            adcvalue = ADCMEM0;
+        {       
+          adcvalue = ADCMEM0;
         break;
         }          
   }
