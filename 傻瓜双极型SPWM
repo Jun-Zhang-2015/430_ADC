@@ -31,12 +31,12 @@ unsigned int sine[257]={ 0,313,320,328,335,343,351,358,366,373,381,388,396,403,4
 void PWM_setUp()
 {
  //TA0.1 TA0.2
-   TA0CTL |= TASSEL_2+MC_1+TACLR;//+TAIE;              //SMCLK, Up mode: Timer counts up to TAxCCR0
+   TA0CTL |= TASSEL_2+MC_3+TACLR;//+TAIE;              //SMCLK, Up/Down mode: Timer counts up to TAxCCR0
    TA0CCR0=  625;                       
    
-   TA0CCTL1 |= OUTMOD_7;//+CCIE;                          //Capture/compare interrupt enable. This bit enables the interrupt request of the corresponding CCIFG flag.
-   TA0CCTL2 |= OUTMOD_7;//+CCIE;  
-   TA0CCTL0 |= OUTMOD_7+CCIE;
+   TA0CCTL1 |= OUTMOD_6;//+CCIE;       // CCR1 toggle/set                   
+   TA0CCTL2 |= OUTMOD_2;//+CCIE;       // CCR2 toggle/reset
+   TA0CCTL0 |= OUTMOD_6+CCIE;          //Capture/compare interrupt enable. This bit enables the interrupt request of the corresponding CCIFG flag.
    
    P1DIR |= BIT7+BIT6;                          
    P1SEL0 |= BIT7+BIT6; 
@@ -89,7 +89,7 @@ int main(void)
 #pragma vector = TIMER0_A0_VECTOR
 __interrupt void TIMERA0_ISR0(void) //Flag cleared automatically
 {
-    unsigned iny fan;
+    unsigned int  fan;
     TA0CCR1= sine[j];
     fan = TA0CCR1 -5;
     if(fan<=0)
@@ -97,7 +97,7 @@ __interrupt void TIMERA0_ISR0(void) //Flag cleared automatically
      fan = 0;
     }
     TA0CCR2= fan;
-    if(++j == 360)
+    if(++j == 256)
     {
      j = 0;
     }
