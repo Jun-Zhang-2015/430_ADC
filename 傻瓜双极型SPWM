@@ -1,0 +1,123 @@
+/**************************************************
+ * 19.496 Project
+ *
+ * Copyright 2015 University of Strathclyde
+ **************************************************/
+#include <msp430.h>
+#include <driverlib.h>
+#include "adc.h"
+
+unsigned int i=0;
+unsigned int j=0;
+//unsigned int a=0;
+
+unsigned int sine[257]={ 0,313,320,328,335,343,351,358,366,373,381,388,396,403,411,418,425,
+432,439,446,453,460,467,473,480,486,492,499,505,511,517,522,528,
+533,539,544,549,554,559,564,568,572,577,581,584,588,592,595,598,
+601,604,607,609,612,614,616,617,619,620,622,623,623,624,624,624,
+624,624,624,624,623,623,622,620,619,617,616,614,612,609,607,604,
+601,598,595,592,588,584,581,577,572,568,564,559,554,549,544,539,
+533,528,522,517,511,505,499,492,486,480,473,467,460,453,446,439,
+432,425,418,411,403,396,388,381,373,366,358,351,343,335,328,320,
+313,305,297,290,282,274,267,259,252,244,237,229,222,214,207,200,
+193,186,179,172,165,158,152,145,139,133,126,120,114,108,103,97,
+92,86,81,76,71,66,61,57,53,48,44,41,37,33,30,27,
+24,21,18,16,13,11,9,8,6,5,3,2,2,1,0,0,
+0,0,0,1,2,2,3,5,6,8,9,11,13,16,18,21,
+24,27,30,33,37,41,44,48,53,57,61,66,71,76,81,86,
+92,97,103,108,114,120,126,133,139,145,152,158,165,172,179,186,
+193,200,207,214,222,229,237,244,252,259,267,274,282,290,297,305};
+
+void PWM_setUp()
+{
+ //TA0.1 TA0.2
+   TA0CTL |= TASSEL_2+MC_1+TACLR;//+TAIE;              //SMCLK, Up mode: Timer counts up to TAxCCR0
+   TA0CCR0=  625;                       
+   
+   TA0CCTL1 |= OUTMOD_7;//+CCIE;                          //Capture/compare interrupt enable. This bit enables the interrupt request of the corresponding CCIFG flag.
+   TA0CCTL2 |= OUTMOD_7;//+CCIE;  
+   TA0CCTL0 |= OUTMOD_7+CCIE;
+   
+   P1DIR |= BIT7+BIT6;                          
+   P1SEL0 |= BIT7+BIT6; 
+ 
+}
+
+int main(void)
+{
+    WDTCTL = WDTPW | WDTHOLD;                          // Stop watchdog timer
+
+    // Configure one FRAM waitstate as required by the device datasheet for MCLK
+    // operation beyond 8MHz _before_ configuring the clock system.
+    FRCTL0 = FRCTLPW | NWAITS_1;
+
+    __bis_SR_register(SCG0);                           // disable FLL
+    CSCTL3 |= SELREF__REFOCLK;                         // Set REFO as FLL reference source
+    CSCTL0 = 0;                                        // clear DCO and MOD registers
+    CSCTL1 &= ~(DCORSEL_7);                            // Clear DCO frequency select bits first
+    CSCTL1 |= DCORSEL_5;                               // Set DCO = 16MHz
+    CSCTL2 = FLLD_0 + 487;                             // DCOCLKDIV = 16MHz
+    __delay_cycles(3);  
+    __bic_SR_register(SCG0);                           // enable FLL
+    while(CSCTL7 & (FLLUNLOCK0 | FLLUNLOCK1));         // FLL locked
+    
+    CSCTL4 |= SELMS__DCOCLKDIV | SELA__REFOCLK;        // set default REFO(~32768Hz) as ACLK source, ACLK = 32768Hz
+                                                       // default DCOCLKDIV as MCLK and SMCLK source
+
+    P1DIR |= BIT0 | BIT4;                              // set MCLK and LED pin as output
+    P1SEL0 |= BIT4;                                    // set MCLK pin as second function
+    P8DIR |= BIT0 | BIT1;                              // set ACLK and SMCLK pin as output
+    P8SEL0 |= BIT0 | BIT1;                             // set ACLK and SMCLK pin as second function
+
+    PM5CTL0 &= ~LOCKLPM5;                              // Disable the GPIO power-on default high-impedance mode
+//  PMM_unlockLPM5();                                  // to activate previously configured port settings
+   
+    PWM_setUp();   // suqare wave frequency: 1M--450 ,8M--3.4K, 16M--6.9kHz 
+
+    __enable_interrupt();
+    
+    while(1)
+    {
+//        P1OUT ^= BIT0;                                 // Toggle P1.0 using exclusive-OR
+//        __delay_cycles(8000000);                       // Delay for 80000*(1/MCLK)=0.5s
+    }
+    
+     return 0;
+}
+
+ //On the compare of TA0CCTL0
+#pragma vector = TIMER0_A0_VECTOR
+__interrupt void TIMERA0_ISR0(void) //Flag cleared automatically
+{
+    unsigned iny fan;
+    TA0CCR1= sine[j];
+    fan = TA0CCR1 -5;
+    if(fan<=0)
+    {
+     fan = 0;
+    }
+    TA0CCR2= fan;
+    if(++j == 360)
+    {
+     j = 0;
+    }
+}
+
+
+
+,313,320,328,335,343,351,358,366,373,381,388,396,403,411,418,425,
+432,439,446,453,460,467,473,480,486,492,499,505,511,517,522,528,
+533,539,544,549,554,559,564,568,572,577,581,584,588,592,595,598,
+601,604,607,609,612,614,616,617,619,620,622,623,623,624,624,624,
+624,624,624,624,623,623,622,620,619,617,616,614,612,609,607,604,
+601,598,595,592,588,584,581,577,572,568,564,559,554,549,544,539,
+533,528,522,517,511,505,499,492,486,480,473,467,460,453,446,439,
+432,425,418,411,403,396,388,381,373,366,358,351,343,335,328,320,
+313,305,297,290,282,274,267,259,252,244,237,229,222,214,207,200,
+193,186,179,172,165,158,152,145,139,133,126,120,114,108,103,97,
+92,86,81,76,71,66,61,57,53,48,44,41,37,33,30,27,
+24,21,18,16,13,11,9,8,6,5,3,2,2,1,0,0,
+0,0,0,1,2,2,3,5,6,8,9,11,13,16,18,21,
+24,27,30,33,37,41,44,48,53,57,61,66,71,76,81,86,
+92,97,103,108,114,120,126,133,139,145,152,158,165,172,179,186,
+193,200,207,214,222,229,237,244,252,259,267,274,282,290,297,305}
