@@ -18,9 +18,9 @@
 #define  Multi_N				(MAX_RATE/MIN_RATE)						//  最大抽样倍数   基数为STD_CCR  
 #define  STD_CCR				1600			//	3200是一周期     UP/DOWN 模式下比较CCR最大1250/2
 #define  MAX_SAMPLES    (MIN_SAMPLES*Multi_N)					//  一周期最大抽样数
-#define  MAX_MA 				0.9
+#define  MAX_MA 				0.72
 
-unsigned int sin_tab[MIN_SAMPLES/4 *Multi_N+1];				//  最小频率(5Hz)时抽样数，  一个周期只需要1/4周期数据即可满足计算	
+float sin_tab[MIN_SAMPLES/4 *Multi_N+1];				//  最小频率(5Hz)时抽样数，  一个周期只需要1/4周期数据即可满足计算	
 unsigned int step=Multi_N;							// 10 缺省 50Hz 时步长【本程序算法用到】
 float ma=MAX_MA;								//  modulation index
 
@@ -141,7 +141,7 @@ int main(void)
 //	 sin(x+PI)=-sin(x);    sin(x)=sin(PI-x)
 //
 		for ( i =0;i<=MAX_SAMPLES/4;i++)
- 			sin_tab[i]= sin(i*PI*2/MAX_SAMPLES)*STD_CCR/2;		// 
+ 			sin_tab[i]= sin(i*PI*2/MAX_SAMPLES)/2;		// 
 
     __enable_interrupt(); 
 
@@ -149,6 +149,8 @@ int main(void)
     {
      	
           do{
+             
+            j=0;     // j若是随机值， v就会乱了
      		for ( i=0;i<8;i++)
      		{
      			//ADC_startConversion(ADC_BASE, ADC_REPEATED_SINGLECHANNEL);
@@ -157,7 +159,7 @@ int main(void)
      		}
      		j>>=3; 											//  除以8 取平均；
      				
-		 if ( abs(j-v) > 40 ) 			//啥意思？？？？	//  旋钮没动，继续测试又没动	  
+		 if ( abs(j-v) > 40 ) 			//动了超过40算动了 就跳出	//  旋钮没动，继续测试又没动	  
 		     break;
                  
              }while(1);	   //若旋钮不变则无法跳出？
@@ -256,7 +258,7 @@ __interrupt void ADC_ISR(void)
     case ADCIV_ADCIFG:              				// conversion complete
         {      
     	    //  adcvalue = ADCMEM0;
-           adcvalue = 918;
+           adcvalue = 1023;
         break;
         }          
   }
@@ -283,8 +285,9 @@ __interrupt void TIMERA0_ISR0(void) //Flag cleared automatically
 		if ( n >= qsamples )
 			n =hsamples-n;
                 
-    TA0CCR1 = (STD_CCR>>1)- r*ma*sin_tab[n];	//	必须用常数？	//  ！！！重要： 算出来的TA0CCR1不可能会小于 1 ， 这是通过ma 最大值取值上来控制
-        fan = TA0CCR1 -1;
+   // TA0CCR1 = (STD_CCR>>1)- r*ma*sin_tab[n];	//	必须用常数？	//  ！！！重要： 算出来的TA0CCR1不可能会小于 1 ， 这是通过ma 最大值取值上来控制
+      TA0CCR1 = (curr_ccr>>1)- (float)sin_tab[n]*ma*curr_ccr*r;
+                fan = TA0CCR1 -1;
     if(fan<=0)
     {
      fan = 0;
