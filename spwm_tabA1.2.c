@@ -16,7 +16,7 @@
 
 #define  MIN_SAMPLES		100														//  50Hz波形时一周期抽样256次
 #define  Multi_N				(MAX_RATE/MIN_RATE)						//  最大抽样倍数   基数为STD_CCR  
-#define  STD_CCR				1600			//	3200是一周期     UP/DOWN 模式下比较CCR最大1250/2
+#define  STD_CCR				1600													//	3200是一周期     UP/DOWN 模式下比较CCR最大3200/2
 #define  MAX_SAMPLES    (MIN_SAMPLES*Multi_N)					//  一周期最大抽样数
 #define  MAX_MA 				0.95
 
@@ -33,7 +33,7 @@ unsigned int max_adc = 1023;													// 设置了初始值，在运行中进
 unsigned int max_adcv =1020;														//  电位器在adc 1021-1023 无效
 unsigned int gap_adc = (1023-0)/Multi_N;		// 102  gap = 每段间隔数值； gap_adc = (max_adc - min_adc)/10;     
 unsigned int adcvalue;																//  用于存放读进来的adc值
-unsigned int curr_ccr=STD_CCR;												//  当前 考虑了  幅度因子的 CCR基准
+unsigned int curr_ccr=STD_CCR*2;												//  当前 考虑了  幅度因子的 CCR基准
 
 
 unsigned int idx=0;											// 	下一个抽样位置索引，状态保持着 ,  idx最大值为samples/2 
@@ -46,7 +46,7 @@ void PWM_setUp_upDownMode()
 {
  //TA0.1 TA0.2
    TA0CTL |= TASSEL_2 + TACLR + MC_3;		//+TAIE; Up/Down mode     //SMCLK, : Timer counts up to TAxCCR0
-   TA0CCR0=  1600;                       
+   TA0CCR0=  STD_CCR*2;                       
    
    TA0CCTL1 |= OUTMOD_6;								//+CCIE;       	// CCR1 toggle/set                   
    TA0CCTL2 |= OUTMOD_2;								//+CCIE;       	// CCR2 toggle/reset
@@ -182,7 +182,7 @@ int main(void)
   			step = Multi_N;
   		else  step = j;															
 
-  		cr = STD_CCR*(float)gap_adc*step/(i);
+  		cr = STD_CCR*2*(float)gap_adc*step/(i);
       if ( cr != curr_ccr )
       	{
   		//  修改 TA0CCR0，好像需要加一句停止什么？？然后改比较合适，否则结果不可预测等等，USERGUIDE里曾看到，		
@@ -264,5 +264,4 @@ __interrupt void TIMERA0_ISR0(void) //Flag cleared automatically
 //			idx -=hsamples;			//  idx %=hsamples;   idx = idx-hsamples?
 //			}					
 }
-
 
