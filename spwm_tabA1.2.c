@@ -46,7 +46,7 @@ void PWM_setUp_upDownMode()
 {
  //TA0.1 TA0.2
    TA0CTL |= TASSEL_2 + TACLR + MC_3;		//+TAIE; Up/Down mode     //SMCLK, : Timer counts up to TAxCCR0
-   TA0CCR0=  STD_CCR*2;                       
+   TA0CCR0=  STD_CCR;                       
    
    TA0CCTL1 |= OUTMOD_6;								//+CCIE;       	// CCR1 toggle/set                   
    TA0CCTL2 |= OUTMOD_2;								//+CCIE;       	// CCR2 toggle/reset
@@ -182,7 +182,7 @@ int main(void)
   			step = Multi_N;
   		else  step = j;															
 
-  		cr = STD_CCR*2*(float)gap_adc*step/(i);
+  		cr = STD_CCR*(float)gap_adc*step/(i);
       if ( cr != curr_ccr )
       	{
   		//  修改 TA0CCR0，好像需要加一句停止什么？？然后改比较合适，否则结果不可预测等等，USERGUIDE里曾看到，		
