@@ -28,8 +28,8 @@ unsigned int samples =  MAX_SAMPLES;									// 缺省一周期抽样数，随�
 unsigned int hsamples = MAX_SAMPLES>>1;								// PI--半周期抽样数
 unsigned int qsamples = MAX_SAMPLES>>2;								// PI/2 --1/4 周期抽样数
 		
-unsigned int min_adc = 666;														  // 设置了初始值，在运行中进行调整			预设为 0,1023，等于去除了其作用
-unsigned int max_adc = 888;													// 设置了初始值，在运行中进行调整		
+unsigned int min_adc = 0;														  // 设置了初始值，在运行中进行调整			预设为 0,1023，等于去除了其作用
+unsigned int max_adc = 1023;													// 设置了初始值，在运行中进行调整		
 unsigned int max_adcv =1020;														//  电位器在adc 1021-1023 无效
 unsigned int gap_adc = (1023-0)/Multi_N;		// 102  gap = 每段间隔数值； gap_adc = (max_adc - min_adc)/10;     
 unsigned int adcvalue;																//  用于存放读进来的adc值
@@ -56,7 +56,21 @@ void PWM_setUp_upDownMode()
    P1SEL0 |= BIT7+BIT6; 
 }
 
-
+void ADC_setup()
+{
+   	ADC_init(ADC_BASE,
+            ADC_SAMPLEHOLDSOURCE_SC,
+            ADC_CLOCKSOURCE_ADCOSC,
+            ADC_CLOCKDIVIDER_1);
+   	ADC_enable(ADC_BASE); 
+   	ADC_enableInterrupt(ADC_BASE,ADC_COMPLETED_INTERRUPT);
+   	ADC_clearInterrupt(ADC_BASE,ADC_COMPLETED_INTERRUPT);
+   	ADC_setupSamplingTimer(ADC_BASE, ADC_CYCLEHOLD_16_CYCLES, ADC_MULTIPLESAMPLESDISABLE);
+   	ADC_configureMemory(ADC_BASE,
+            ADC_INPUT_A5,
+            ADC_VREFPOS_AVCC,
+            ADC_VREFNEG_AVSS);
+}
 
 void ADC_setup1()
 {
@@ -72,8 +86,8 @@ void ADC_setup1()
 
   // ADC conversion trigger signal --TimerA1.1  为啥??（这个设置是和例程一样的 但是并不知道和原来的选择差别在哪。。
   TA1CTL |= TASSEL_1 + TACLR;      // 01 ACLK 
-  TA1CCR0 = 1600;           //PWM period
-  TA1CCR1 = 800;            // TA1.  ADC trigger     
+  TA1CCR0 = 1200;           //PWM period
+  TA1CCR1 = 1000;            // TA1.  ADC trigger     
   TA1CCTL1 |= OUTMOD_4;            // toogle
   TA1CTL |= MC_1;           //UP mode
   
@@ -112,6 +126,9 @@ int main(void)
     P8DIR |= BIT0 | BIT1;                              // set ACLK and SMCLK pin as output
     P8SEL0 |= BIT0 | BIT1;                             // set ACLK and SMCLK pin as second function    
     
+        //GPIO 8.1
+  //	GPIO_setAsPeripheralModuleFunctionInputPin(GPIO_PORT_P1, GPIO_PIN5, GPIO_PRIMARY_MODULE_FUNCTION);
+    
     PM5CTL0 &= ~LOCKLPM5;                              // Disable the GPIO power-on default high-impedance mode
 //  PMM_unlockLPM5();                                  // to activate previously configured port settings
    
@@ -132,12 +149,13 @@ int main(void)
     {
      	
      	do{
-     		for ( i=0;i<7;i++)
-     		{
-		 			__delay_cycles(8000000/50);				//	延时10ms	 ; 8000000*(1/MCLK)=0.5s 
-     			adcvalue+=adcvalue;
-     		}
-     		adcvalue>>=3; 											//  除以8 取平均；
+          //   ADC_startConversion(ADC_BASE, ADC_REPEATED_SINGLECHANNEL);
+//     		for ( i=0;i<7;i++)
+//     		{
+//		 			__delay_cycles(8000000/50);				//	延时10ms	 ; 8000000*(1/MCLK)=0.5s 
+//     			adcvalue+=adcvalue;
+//     		}
+//     		adcvalue>>=3; 											//  除以8 取平均；
      				
 		if ( abs(adcvalue-v)<20 ) 				  //  
 		{
@@ -146,7 +164,9 @@ int main(void)
 		 		break;
 	   }while(1);	
 		//  动了
-			v=adcvalue;
+	do{
+                v=adcvalue;
+          //   ADC_startConversion(ADC_BASE, ADC_REPEATED_SINGLECHANNEL);   
 	if (adcvalue< min_adc )										//  如果
        	min_adc = adcvalue;
      	if (adcvalue>max_adc)
@@ -154,10 +174,13 @@ int main(void)
         
 //      gap_adc= (max_adc-min_adc)/Multi_N;
             max_adcv = gap_adc*Multi_N;         //1020
-		ma = (MAX_MA/max_adcv)*adcvalue;
-  
+		
+        }while( abs(adcvalue-v)>=2);
+        
 			i = v>max_adcv ? max_adcv : adcvalue;			//       高于 max_adcv 就按max_adcv 算
-  		i = i-min_adc;
+                        ma = (MAX_MA/max_adcv)*adcvalue;   //防止ma超出最大值
+                        
+                i = i-min_adc;
   		j= (i+gap_adc-1)/gap_adc;     // 为什么要减1？      i = min_adc 时 step = 0 , 需要处理
   		if ( j <=0 ) 															//    剔除异常值；
   			step = 1;
@@ -184,7 +207,8 @@ __interrupt void ADC_ISR(void)
   {
     case ADCIV_ADCIFG:              				// conversion complete
         {      
-    		adcvalue = ADCMEM0;
+    	     //  adcvalue = ADCMEM0;
+          adcvalue = 1020;
         break;
         }          
   }
@@ -196,33 +220,68 @@ __interrupt void ADC_ISR(void)
 #pragma vector = TIMER0_A0_VECTOR
 __interrupt void TIMERA0_ISR0(void) //Flag cleared automatically
 {
-		unsigned int n,r,fan;
-                
-		if ( idx <= qsamples )
-			r = ma*sin_tab[n];
-		else if ( idx > qsamples && idx <=hsamples )
-			r = ma*sin_tab[hsamples-idx];      //sin(x)=sin(PI-x)
-    else if ( idx >hsamples && idx <= (hsamples + qsamples) )
-    	r = -ma*sin_tab[idx-hsamples];
-    else if ( idx > (hsamples + qsamples) )
-        r = r = -ma*sin_tab[samples-idx];
-    
-    TA0CCR1 = STD_CCR>>1-r;        // 1/2Tc - r
-    
-    fan = TA0CCR1 -1;
+  
+  		int n,r=1,fan;			// 不用unsigned  因为r 可能取负值
+
+		n = idx;
+                r=1;
+		if ( n >=hsamples )
+				{
+		    n -=hsamples;
+		    r = -1;
+		    }
+		if ( n >= qsamples )
+			n =hsamples-n;
+    TA0CCR1 = STD_CCR/2- r*ma*sin_tab[n];	//	必须用常数？	//  ！！！重要： 算出来的TA0CCR1不可能会小于 1 ， 这是通过ma 最大值取值上来控制
+        fan = TA0CCR1 -1;
     if(fan<=0)
     {
      fan = 0;
     }
-    TA0CCR2= fan;   	
+    TA0CCR2= fan;   
+    // TA0CCR2 = TA0CCR1>1 ? TA0CCR1-1 : 0 ;    								  //  再次控制，其实不需要了
 
 		//		TA0CCR2 = sin_tab[idx>qsamples ? hsamples-idx : idx ]*ma;			
    
 	  idx +=step;	
-	  if ( idx >= hsamples )		// 是否到达半周期
+	  if ( idx >= samples )		// 是否到达周期
 			{
-			idx -=hsamples;			//  idx %=hsamples;   idx = idx-hsamples?
-			}					
+			idx -=samples;			//  idx %=samples;
+			}
+  
+  
+  
+  
+  
+  
+  
+//		unsigned int n,r,fan;
+//                
+//		if ( idx <= qsamples )
+//			r = ma*sin_tab[idx];
+//		else if ( idx > qsamples && idx <=hsamples )
+//			r = ma*sin_tab[hsamples-idx];      //sin(x)=sin(PI-x)
+//    else if ( idx >hsamples && idx <= (hsamples + qsamples) )
+//    	r = -ma*sin_tab[idx-hsamples];
+//    else if ( idx > (hsamples + qsamples) )
+//        r = -ma*sin_tab[samples-idx];
+//    
+//    TA0CCR1 = STD_CCR>>1-r;        // 1/2Tc - r
+//    
+//    fan = TA0CCR1 -1;
+//    if(fan<=0)
+//    {
+//     fan = 0;
+//    }
+//    TA0CCR2= fan;   	
+//
+//		//		TA0CCR2 = sin_tab[idx>qsamples ? hsamples-idx : idx ]*ma;			
+//   
+//	  idx +=step;	
+//	  if ( idx >= hsamples )		// 是否到达半周期
+//			{
+//			idx -=hsamples;			//  idx %=hsamples;   idx = idx-hsamples?
+//			}					
 }
 
 //void PWM_setUp()
@@ -239,19 +298,5 @@ __interrupt void TIMERA0_ISR0(void) //Flag cleared automatically
 //   P1SEL0 |= BIT7+BIT6; 
 //}
 //
-//void ADC_setup()
-//{
-//   	ADC_init(ADC_BASE,
-//            ADC_SAMPLEHOLDSOURCE_SC,
-//            ADC_CLOCKSOURCE_ADCOSC,
-//            ADC_CLOCKDIVIDER_1);
-//   	ADC_enable(ADC_BASE); 
-//   	ADC_enableInterrupt(ADC_BASE,ADC_COMPLETED_INTERRUPT);
-//   	ADC_clearInterrupt(ADC_BASE,ADC_COMPLETED_INTERRUPT);
-//   	ADC_setupSamplingTimer(ADC_BASE, ADC_CYCLEHOLD_16_CYCLES, ADC_MULTIPLESAMPLESDISABLE);
-//   	ADC_configureMemory(ADC_BASE,
-//            ADC_INPUT_A9,
-//            ADC_VREFPOS_AVCC,
-//            ADC_VREFNEG_AVSS);
-//}
+
 
