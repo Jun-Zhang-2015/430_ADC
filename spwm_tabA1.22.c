@@ -11,34 +11,34 @@
 #define  abs(x)					((x)>0? x : -(x))
 #define  PI  						3.1415926535897932384626
  		
-#define  MIN_RATE    		5														  //  ¿ÉĞŞ¸Ä
-#define  MAX_RATE    		50														//  ¿ÉĞŞ¸Ä
+#define  MIN_RATE    		5														  //  å¯ä¿®æ”¹
+#define  MAX_RATE    		50														//  å¯ä¿®æ”¹
 
-#define  MIN_SAMPLES		100														//  50Hz²¨ĞÎÊ±Ò»ÖÜÆÚ³éÑù256´Î
-#define  Multi_N				(MAX_RATE/MIN_RATE)						//  ×î´ó³éÑù±¶Êı   »ùÊıÎªSTD_CCR  
-#define  STD_CCR				1600													//	3200ÊÇÒ»ÖÜÆÚ     UP/DOWN Ä£Ê½ÏÂ±È½ÏCCR×î´ó3200/2
-#define  MAX_SAMPLES    (MIN_SAMPLES*Multi_N)					//  Ò»ÖÜÆÚ×î´ó³éÑùÊı
-#define  MAX_MA 				0.95
+#define  MIN_SAMPLES		100														//  50Hzæ³¢å½¢æ—¶ä¸€å‘¨æœŸæŠ½æ ·256æ¬¡
+#define  Multi_N				(MAX_RATE/MIN_RATE)						//  æœ€å¤§æŠ½æ ·å€æ•°   åŸºæ•°ä¸ºSTD_CCR  
+#define  STD_CCR				1600			//	3200æ˜¯ä¸€å‘¨æœŸ     UP/DOWN æ¨¡å¼ä¸‹æ¯”è¾ƒCCRæœ€å¤§1250/2
+#define  MAX_SAMPLES    (MIN_SAMPLES*Multi_N)					//  ä¸€å‘¨æœŸæœ€å¤§æŠ½æ ·æ•°
+#define  MAX_MA 				0.9
 
-unsigned int sin_tab[MIN_SAMPLES/4 *Multi_N+1];				//  ×îĞ¡ÆµÂÊ(5Hz)Ê±³éÑùÊı£¬  Ò»¸öÖÜÆÚÖ»ĞèÒª1/4ÖÜÆÚÊı¾İ¼´¿ÉÂú×ã¼ÆËã	
-unsigned int step=Multi_N;							// 10 È±Ê¡ 50Hz Ê±²½³¤¡¾±¾³ÌĞòËã·¨ÓÃµ½¡¿
+unsigned int sin_tab[MIN_SAMPLES/4 *Multi_N+1];				//  æœ€å°é¢‘ç‡(5Hz)æ—¶æŠ½æ ·æ•°ï¼Œ  ä¸€ä¸ªå‘¨æœŸåªéœ€è¦1/4å‘¨æœŸæ•°æ®å³å¯æ»¡è¶³è®¡ç®—	
+unsigned int step=Multi_N;							// 10 ç¼ºçœ 50Hz æ—¶æ­¥é•¿ã€æœ¬ç¨‹åºç®—æ³•ç”¨åˆ°ã€‘
 float ma=MAX_MA;								//  modulation index
 
-unsigned int samples =  MAX_SAMPLES;									// È±Ê¡Ò»ÖÜÆÚ³éÑùÊı£¬Ëæ×ÅĞıÅ¥×ª¶¯±ä»¯£¬
-unsigned int hsamples = MAX_SAMPLES>>1;								// PI--°ëÖÜÆÚ³éÑùÊı
-unsigned int qsamples = MAX_SAMPLES>>2;								// PI/2 --1/4 ÖÜÆÚ³éÑùÊı
+unsigned int samples =  MAX_SAMPLES;									// ç¼ºçœä¸€å‘¨æœŸæŠ½æ ·æ•°ï¼Œéšç€æ—‹é’®è½¬åŠ¨å˜åŒ–ï¼Œ
+unsigned int hsamples = MAX_SAMPLES>>1;								// PI--åŠå‘¨æœŸæŠ½æ ·æ•°
+unsigned int qsamples = MAX_SAMPLES>>2;								// PI/2 --1/4 å‘¨æœŸæŠ½æ ·æ•°
 		
-unsigned int min_adc = 0;														  // ÉèÖÃÁË³õÊ¼Öµ£¬ÔÚÔËĞĞÖĞ½øĞĞµ÷Õû			Ô¤ÉèÎª 0,1023£¬µÈÓÚÈ¥³ıÁËÆä×÷ÓÃ
-unsigned int max_adc = 1023;													// ÉèÖÃÁË³õÊ¼Öµ£¬ÔÚÔËĞĞÖĞ½øĞĞµ÷Õû		
-unsigned int max_adcv =1020;														//  µçÎ»Æ÷ÔÚadc 1021-1023 ÎŞĞ§
-unsigned int gap_adc = (1023-0)/Multi_N;		// 102  gap = Ã¿¶Î¼ä¸ôÊıÖµ£» gap_adc = (max_adc - min_adc)/10;     
-unsigned int adcvalue;																//  ÓÃÓÚ´æ·Å¶Á½øÀ´µÄadcÖµ
-unsigned int curr_ccr=STD_CCR*2;												//  µ±Ç° ¿¼ÂÇÁË  ·ù¶ÈÒò×ÓµÄ CCR»ù×¼
+unsigned int min_adc = 0;														  // è®¾ç½®äº†åˆå§‹å€¼ï¼Œåœ¨è¿è¡Œä¸­è¿›è¡Œè°ƒæ•´			é¢„è®¾ä¸º 0,1023ï¼Œç­‰äºå»é™¤äº†å…¶ä½œç”¨
+unsigned int max_adc = 1023;													// è®¾ç½®äº†åˆå§‹å€¼ï¼Œåœ¨è¿è¡Œä¸­è¿›è¡Œè°ƒæ•´		
+unsigned int max_adcv =1020;														//  ç”µä½å™¨åœ¨adc 1021-1023 æ— æ•ˆ
+unsigned int gap_adc = (1023-0)/Multi_N;		// 102  gap = æ¯æ®µé—´éš”æ•°å€¼ï¼› gap_adc = (max_adc - min_adc)/10;     
+unsigned int adcvalue;																//  ç”¨äºå­˜æ”¾è¯»è¿›æ¥çš„adcå€¼
+unsigned int curr_ccr=STD_CCR;												//  å½“å‰ è€ƒè™‘äº†  å¹…åº¦å› å­çš„ CCRåŸºå‡†
 
 
-unsigned int idx=0;											// 	ÏÂÒ»¸ö³éÑùÎ»ÖÃË÷Òı£¬×´Ì¬±£³Ö×Å ,  idx×î´óÖµÎªsamples/2 
-unsigned int state=0;																	//  ³éÑùµãidxÔÚSIN²¨ÇøÓò£¬Å¼Êı±íÊ¾ÔÚÉÏ°ëÖÜÆÚ£¬ÆæÊı±íÊ¾Î»ÓÚÏÂ°ëÖÜÆÚ
-unsigned int cflag=0;																	//  ÕıÔÚĞŞ¸Äµ÷Æµ²ÎÊı±êÖ¾
+unsigned int idx=0;											// 	ä¸‹ä¸€ä¸ªæŠ½æ ·ä½ç½®ç´¢å¼•ï¼ŒçŠ¶æ€ä¿æŒç€ ,  idxæœ€å¤§å€¼ä¸ºsamples/2 
+unsigned int state=0;																	//  æŠ½æ ·ç‚¹idxåœ¨SINæ³¢åŒºåŸŸï¼Œå¶æ•°è¡¨ç¤ºåœ¨ä¸ŠåŠå‘¨æœŸï¼Œå¥‡æ•°è¡¨ç¤ºä½äºä¸‹åŠå‘¨æœŸ
+unsigned int cflag=0;																	//  æ­£åœ¨ä¿®æ”¹è°ƒé¢‘å‚æ•°æ ‡å¿—
 
 
 
@@ -78,20 +78,20 @@ void ADC_setup1()
   SYSCFG2 |= ADCPCTL5;
   
   ADCCTL0 |= ADCSHT_6 + ADCON + ADCMSC;   //  ADCON      
-  ADCCTL1 |= ADCSHS_2 + ADCSSEL_2 + ADCDIV_7 + ADCCONSEQ_2; //repeat single channel; TA1.1 trig sample start £¨µ«ÊÇ²»ÖªµÀÎªÉ¶ÊÇ1.1£©
+  ADCCTL1 |= ADCSHS_2 + ADCSSEL_2 + ADCDIV_7 + ADCCONSEQ_2; //repeat single channel; TA1.1 trig sample start ï¼ˆä½†æ˜¯ä¸çŸ¥é“ä¸ºå•¥æ˜¯1.1ï¼‰
   ADCCTL2 |= ADCPDIV_2 + ADCRES;          // 10-bit conversion results
   ADCMCTL0 |= ADCINCH_5;          //ADC Input Channel A5 P1.5
   ADCIE |= ADCIE0;                // Enable ADC conv complete interrupt
   ADCCTL0 |= ADCENC;              // ADC enable
 
-  // ADC conversion trigger signal --TimerA1.1  ÎªÉ¶??£¨Õâ¸öÉèÖÃÊÇºÍÀı³ÌÒ»ÑùµÄ µ«ÊÇ²¢²»ÖªµÀºÍÔ­À´µÄÑ¡Ôñ²î±ğÔÚÄÄ¡£¡£
+  // ADC conversion trigger signal --TimerA1.1  ä¸ºå•¥??ï¼ˆè¿™ä¸ªè®¾ç½®æ˜¯å’Œä¾‹ç¨‹ä¸€æ ·çš„ ä½†æ˜¯å¹¶ä¸çŸ¥é“å’ŒåŸæ¥çš„é€‰æ‹©å·®åˆ«åœ¨å“ªã€‚ã€‚
   TA1CTL |= TASSEL_1 + TACLR;      // 01 ACLK 
   TA1CCR0 = 1200;           //PWM period
   TA1CCR1 = 1000;            // TA1.  ADC trigger     
   TA1CCTL1 |= OUTMOD_4;            // toogle
   TA1CTL |= MC_1;           //UP mode
   
-  P4DIR |= BIT0;     //ÕâÁ½¾äÀı³ÌÀïÃæÃ»ÓĞ
+  P4DIR |= BIT0;     //è¿™ä¸¤å¥ä¾‹ç¨‹é‡Œé¢æ²¡æœ‰
   P4SEL0 |= BIT0;
 
 }
@@ -133,50 +133,53 @@ int main(void)
 //  PMM_unlockLPM5();                                  // to activate previously configured port settings
    
 //  PWM_setUp();   // suqare wave frequency: 1M--450 ,8M--3.4K, 16M--6.9kHz 
-		PWM_setUp_upDownMode();														//  ×¢ÒâĞŞ¸Ä
+		PWM_setUp_upDownMode();														//  æ³¨æ„ä¿®æ”¹
 		ADC_setup1();
 
     
-//   sin_tab[]  ¼ÆËã£¬Ö»ĞèÒªËÄ·ÖÖ®Ò»ÖÜÆÚµÄ±í¸ñ£¬¼´¿ÉËã³öÒ»¸öÖÜÆÚµÄSIN±í
+//   sin_tab[]  è®¡ç®—ï¼Œåªéœ€è¦å››åˆ†ä¹‹ä¸€å‘¨æœŸçš„è¡¨æ ¼ï¼Œå³å¯ç®—å‡ºä¸€ä¸ªå‘¨æœŸçš„SINè¡¨
 //	 sin(x+PI)=-sin(x);    sin(x)=sin(PI-x)
 //
 		for ( i =0;i<=MAX_SAMPLES/4;i++)
- 			sin_tab[i]= sin(i*PI*2/MAX_SAMPLES)/2;		// 
+ 			sin_tab[i]= sin(i*PI*2/MAX_SAMPLES)*STD_CCR/2;		// 
 
     __enable_interrupt(); 
 
-		while(1)
+     while(1)
     {
      	
-     	do{
-     	  j=0;	
-				for ( i=0;i<8;i++)
-        	{
-     			ADC_startConversion(ADC_BASE, ADC_REPEATED_SINGLECHANNEL);
-					__delay_cycles(8000000/50);				//	ÑÓÊ±10ms	 ; 8000000*(1/MCLK)=0.5s 
-     			j+=adcvalue;
-          }
-        j>>=3; 											//  ³ıÒÔ8 È¡Æ½¾ù£»
+          do{
+     		for ( i=0;i<8;i++)
+     		{
+     			//ADC_startConversion(ADC_BASE, ADC_REPEATED_SINGLECHANNEL);
+		 			__delay_cycles(8000000/50);				//	å»¶æ—¶10ms	 ; 8000000*(1/MCLK)=0.5s 
+     			    j += adcvalue;
+     		}
+     		j>>=3; 											//  é™¤ä»¥8 å–å¹³å‡ï¼›
      				
-        if ( abs(j-v)>40 ) 				  //  
-           break;
-      }while(1);	   //ÈôĞıÅ¥²»±äÔòÎŞ·¨Ìø³ö£¿
-			//  ¶¯ÁË
-		
-    	v=j;
-			if ( v < min_adc )										//  Èç¹û
+		 if ( abs(j-v) > 40 ) 			//å•¥æ„æ€ï¼Ÿï¼Ÿï¼Ÿï¼Ÿ	//  æ—‹é’®æ²¡åŠ¨ï¼Œç»§ç»­æµ‹è¯•åˆæ²¡åŠ¨	  
+		     break;
+                 
+             }while(1);	   //è‹¥æ—‹é’®ä¸å˜åˆ™æ— æ³•è·³å‡ºï¼Ÿ
+			//  åŠ¨äº†
+			
+               v=j;
+	if ( v < min_adc )										//  å¦‚æœ
        	min_adc = v;
      	if ( v >max_adc)
        	max_adc = v;
-      gap_adc= (max_adc-min_adc)/Multi_N;
-      max_adcv = gap_adc*Multi_N;
-
-			i = v>max_adcv ? max_adcv : v;			//       ¸ßÓÚ max_adcv ¾Í°´max_adcv Ëã		
+        gap_adc= (max_adc-min_adc)/Multi_N;
+        max_adcv = gap_adc*Multi_N;
+           
+       
+	
+                        i = v>max_adcv ? max_adcv : v;			//       é«˜äº max_adcv å°±æŒ‰max_adcv ç®—		
 			ma = (MAX_MA/max_adcv)*i;									
-
+  
+		
   		i = i-min_adc;
-  		j= (i+gap_adc-1)/gap_adc;     //       i = min_adc Ê± step = 0 , ĞèÒª´¦Àí
-  		if ( j <=0 ) 															//    ÌŞ³ıÒì³£Öµ£»
+  		j = (i+gap_adc-1)/gap_adc;     //       i = min_adc æ—¶ step = 0 , éœ€è¦å¤„ç†
+  		if ( j <=0 ) 															//    å‰”é™¤å¼‚å¸¸å€¼ï¼›
   			step = 1;
   		else if( j >=Multi_N )
   			step = Multi_N;
@@ -185,10 +188,61 @@ int main(void)
   		cr = STD_CCR*(float)gap_adc*step/(i);
       if ( cr != curr_ccr )
       	{
-  		//  ĞŞ¸Ä TA0CCR0£¬ºÃÏñĞèÒª¼ÓÒ»¾äÍ£Ö¹Ê²Ã´£¿£¿È»ºó¸Ä±È½ÏºÏÊÊ£¬·ñÔò½á¹û²»¿ÉÔ¤²âµÈµÈ£¬USERGUIDEÀïÔø¿´µ½£¬		
+  		//  ä¿®æ”¹ TA0CCR0ï¼Œå¥½åƒéœ€è¦åŠ ä¸€å¥åœæ­¢ä»€ä¹ˆï¼Ÿï¼Ÿç„¶åæ”¹æ¯”è¾ƒåˆé€‚ï¼Œå¦åˆ™ç»“æœä¸å¯é¢„æµ‹ç­‰ç­‰ï¼ŒUSERGUIDEé‡Œæ›¾çœ‹åˆ°ï¼Œ		
       	TA0CCR0 = cr;
-      	curr_ccr=cr;
+      	curr_ccr= cr;
       	}
+      
+      
+      
+      
+//     	do{
+//     		for ( i=0;i<7;i++)
+//     			{
+//     			//ADC_startConversion(ADC_BASE, ADC_REPEATED_SINGLECHANNEL);
+//		 			__delay_cycles(8000000/50);				//	å»¶æ—¶10ms	 ; 8000000*(1/MCLK)=0.5s 
+//     			    j = adcvalue;
+//                                        j+=j;
+//     			}
+//     		j>>=3; 											//  é™¤ä»¥8 å–å¹³å‡ï¼›
+//     				
+////		 if ( abs(j-v)<20 ) 				  //  
+////		 {
+////		 			continue;													//  æ—‹é’®æ²¡åŠ¨ï¼Œç»§ç»­æµ‹è¯•åˆæ²¡åŠ¨
+////		  }
+//		 		break;
+//            }while(1);	   //è‹¥æ—‹é’®ä¸å˜åˆ™æ— æ³•è·³å‡ºï¼Ÿ
+//			//  åŠ¨äº†
+//	do{		
+//               v=j;
+//	if ( v < min_adc )										//  å¦‚æœ
+//       	min_adc = v;
+//     	if ( v >max_adc)
+//       	max_adc = v;
+//        gap_adc= (max_adc-min_adc)/Multi_N;
+//        max_adcv = gap_adc*Multi_N;
+//           
+//        }while( abs(j-v) >=2);
+//	
+//                        i = v>max_adcv ? max_adcv : v;			//       é«˜äº max_adcv å°±æŒ‰max_adcv ç®—		
+//			ma = (MAX_MA/max_adcv)*i;									
+//  
+//		
+//  		i = i-min_adc;
+//  		j= (i+gap_adc-1)/gap_adc;     //       i = min_adc æ—¶ step = 0 , éœ€è¦å¤„ç†
+//  		if ( j <=0 ) 															//    å‰”é™¤å¼‚å¸¸å€¼ï¼›
+//  			step = 1;
+//  		else if( j >=Multi_N )
+//  			step = Multi_N;
+//  		else  step = j;															
+//
+//  		i = STD_CCR*(float)gap_adc*step/(i);
+//      if ( i != curr_ccr )
+//      	{
+//  		//  ä¿®æ”¹ TA0CCR0ï¼Œå¥½åƒéœ€è¦åŠ ä¸€å¥åœæ­¢ä»€ä¹ˆï¼Ÿï¼Ÿç„¶åæ”¹æ¯”è¾ƒåˆé€‚ï¼Œå¦åˆ™ç»“æœä¸å¯é¢„æµ‹ç­‰ç­‰ï¼ŒUSERGUIDEé‡Œæ›¾çœ‹åˆ°ï¼Œ		
+//      	TA0CCR0 = i;
+//      	curr_ccr=i;
+//      	}
     }
 
 }
@@ -201,8 +255,8 @@ __interrupt void ADC_ISR(void)
   {
     case ADCIV_ADCIFG:              				// conversion complete
         {      
-    	     //  adcvalue = ADCMEM0;
-          adcvalue = ADCMEM0;
+    	    //  adcvalue = ADCMEM0;
+           adcvalue = 918;
         break;
         }          
   }
@@ -215,68 +269,36 @@ __interrupt void ADC_ISR(void)
 __interrupt void TIMERA0_ISR0(void) //Flag cleared automatically
 {
   
-  		int n,r,fan;			// ²»ÓÃunsigned  ÒòÎªr ¿ÉÄÜÈ¡¸ºÖµ
+  		int n,r,fan;			// ä¸ç”¨unsigned  å› ä¸ºr å¯èƒ½å–è´Ÿå€¼
 
 		n = idx;
+                
 		if ( n >=hsamples )
 				{
 		    n -=hsamples;
 		    r = -1;
 		    }
-		else r = 1;
-
+                else r=1;
+                
 		if ( n >= qsamples )
 			n =hsamples-n;
+                
+    TA0CCR1 = (STD_CCR>>1)- r*ma*sin_tab[n];	//	å¿…é¡»ç”¨å¸¸æ•°ï¼Ÿ	//  ï¼ï¼ï¼é‡è¦ï¼š ç®—å‡ºæ¥çš„TA0CCR1ä¸å¯èƒ½ä¼šå°äº 1 ï¼Œ è¿™æ˜¯é€šè¿‡ma æœ€å¤§å€¼å–å€¼ä¸Šæ¥æ§åˆ¶
+        fan = TA0CCR1 -1;
+    if(fan<=0)
+    {
+     fan = 0;
+    }
+    TA0CCR2= fan;   
+    // TA0CCR2 = TA0CCR1>1 ? TA0CCR1-1 : 0 ;    								  //  å†æ¬¡æ§åˆ¶ï¼Œå…¶å®ä¸éœ€è¦äº†
 
-    TA0CCR1 = (curr_ccr>>1) - r*curr_ccr*ma*sin_tab[n];				//	±ØĞëÓÃ³£Êı£¿	//  £¡£¡£¡ÖØÒª£º Ëã³öÀ´µÄTA0CCR1²»¿ÉÄÜ»áĞ¡ÓÚ 1 £¬ ÕâÊÇÍ¨¹ıma ×î´óÖµÈ¡ÖµÉÏÀ´¿ØÖÆ
-    TA0CCR2 = TA0CCR1>1 ? TA0CCR1-1 : 0 ;    								  //  ÔÙ´Î¿ØÖÆ£¬ÆäÊµ²»ĞèÒªÁË
+		//		TA0CCR2 = sin_tab[idx>qsamples ? hsamples-idx : idx ]*ma;			
    
 	  idx +=step;	
-	  if ( idx >= samples )		// ÊÇ·ñµ½´ïÖÜÆÚ
+	  if ( idx >= samples )		// æ˜¯å¦åˆ°è¾¾å‘¨æœŸ
+			{
 			idx -=samples;			//  idx %=samples;
- 
+			}
   
-//		unsigned int n,r,fan;
-//                
-//		if ( idx <= qsamples )
-//			r = ma*sin_tab[idx];
-//		else if ( idx > qsamples && idx <=hsamples )
-//			r = ma*sin_tab[hsamples-idx];      //sin(x)=sin(PI-x)
-//    else if ( idx >hsamples && idx <= (hsamples + qsamples) )
-//    	r = -ma*sin_tab[idx-hsamples];
-//    else if ( idx > (hsamples + qsamples) )
-//        r = -ma*sin_tab[samples-idx];
-//    
-//    TA0CCR1 = STD_CCR>>1-r;        // 1/2Tc - r
-//    
-//    fan = TA0CCR1 -1;
-//    if(fan<=0)
-//    {
-//     fan = 0;
-//    }
-//    TA0CCR2= fan;   	
-//
-//		//		TA0CCR2 = sin_tab[idx>qsamples ? hsamples-idx : idx ]*ma;			
-//   
-//	  idx +=step;	
-//	  if ( idx >= hsamples )		// ÊÇ·ñµ½´ï°ëÖÜÆÚ
-//			{
-//			idx -=hsamples;			//  idx %=hsamples;   idx = idx-hsamples?
-//			}					
-}
-
-//void PWM_setUp()
-//{
-// //TA0.1 TA0.2
-//   TA0CTL |= TASSEL_2+MC_1+TACLR;//+TAIE;             //SMCLK, Up mode: Timer counts up to TAxCCR0
-//   TA0CCR0=  STD_CCR;                       
-//   
-//   TA0CCTL1 |= OUTMOD_7;//+CCIE;                      //Capture/compare interrupt enable. This bit enables the interrupt request of the corresponding CCIFG flag.
-//   TA0CCTL2 |= OUTMOD_7;//+CCIE;  
-//   TA0CCTL0 |= OUTMOD_7+CCIE;
-//   
-//   P1DIR |= BIT7+BIT6;                          
-//   P1SEL0 |= BIT7+BIT6; 
-//}
-//
+} 
 
