@@ -100,7 +100,7 @@ void ADC_setup1()
 
 int main(void)
 {
-    unsigned int v = 9999,i=0,j;
+    unsigned int v = 9999,i=0,j,cr;
     
     WDTCTL = WDTPW | WDTHOLD;                          // Stop watchdog timer
 
@@ -141,59 +141,53 @@ int main(void)
 //	 sin(x+PI)=-sin(x);    sin(x)=sin(PI-x)
 //
 		for ( i =0;i<=MAX_SAMPLES/4;i++)
- 			sin_tab[i]= sin(i*PI*2/MAX_SAMPLES)*STD_CCR/2;		// 
+ 			sin_tab[i]= sin(i*PI*2/MAX_SAMPLES)/2;		// 
 
     __enable_interrupt(); 
 
-    while(1)
+		while(1)
     {
      	
      	do{
-          //   ADC_startConversion(ADC_BASE, ADC_REPEATED_SINGLECHANNEL);
-//     		for ( i=0;i<7;i++)
-//     		{
-//		 			__delay_cycles(8000000/50);				//	延时10ms	 ; 8000000*(1/MCLK)=0.5s 
-//     			adcvalue+=adcvalue;
-//     		}
-//     		adcvalue>>=3; 											//  除以8 取平均；
+     	  j=0;	
+				for ( i=0;i<8;i++)
+        	{
+     			ADC_startConversion(ADC_BASE, ADC_REPEATED_SINGLECHANNEL);
+					__delay_cycles(8000000/50);				//	延时10ms	 ; 8000000*(1/MCLK)=0.5s 
+     			j+=adcvalue;
+          }
+        j>>=3; 											//  除以8 取平均；
      				
-		if ( abs(adcvalue-v)<20 ) 				  //  
-		{
-		 			continue;													//  旋钮没动，继续测试又没动
-		}
-		 		break;
-	   }while(1);	
-		//  动了
-	do{
-                v=adcvalue;
-          //   ADC_startConversion(ADC_BASE, ADC_REPEATED_SINGLECHANNEL);   
-	if (adcvalue< min_adc )										//  如果
-       	min_adc = adcvalue;
-     	if (adcvalue>max_adc)
-       	max_adc = adcvalue;
-        
-//      gap_adc= (max_adc-min_adc)/Multi_N;
-            max_adcv = gap_adc*Multi_N;         //1020
+        if ( abs(j-v)>40 ) 				  //  
+           break;
+      }while(1);	   //若旋钮不变则无法跳出？
+			//  动了
 		
-        }while( abs(adcvalue-v)>=2);
-        
-			i = v>max_adcv ? max_adcv : adcvalue;			//       高于 max_adcv 就按max_adcv 算
-                        ma = (MAX_MA/max_adcv)*adcvalue;   //防止ma超出最大值
-                        
-                i = i-min_adc;
-  		j= (i+gap_adc-1)/gap_adc;     // 为什么要减1？      i = min_adc 时 step = 0 , 需要处理
+    	v=j;
+			if ( v < min_adc )										//  如果
+       	min_adc = v;
+     	if ( v >max_adc)
+       	max_adc = v;
+      gap_adc= (max_adc-min_adc)/Multi_N;
+      max_adcv = gap_adc*Multi_N;
+
+			i = v>max_adcv ? max_adcv : v;			//       高于 max_adcv 就按max_adcv 算		
+			ma = (MAX_MA/max_adcv)*i;									
+
+  		i = i-min_adc;
+  		j= (i+gap_adc-1)/gap_adc;     //       i = min_adc 时 step = 0 , 需要处理
   		if ( j <=0 ) 															//    剔除异常值；
   			step = 1;
   		else if( j >=Multi_N )
   			step = Multi_N;
   		else  step = j;															
 
-  		i = STD_CCR*(float)gap_adc*step/(i);         
-      if ( i != curr_ccr )
+  		cr = STD_CCR*(float)gap_adc*step/(i);
+      if ( cr != curr_ccr )
       	{
   		//  修改 TA0CCR0，好像需要加一句停止什么？？然后改比较合适，否则结果不可预测等等，USERGUIDE里曾看到，		
-      	TA0CCR0 = i;
-      	curr_ccr=i;
+      	TA0CCR0 = cr;
+      	curr_ccr=cr;
       	}
     }
 
@@ -208,7 +202,7 @@ __interrupt void ADC_ISR(void)
     case ADCIV_ADCIFG:              				// conversion complete
         {      
     	     //  adcvalue = ADCMEM0;
-          adcvalue = 1020;
+          adcvalue = ADCMEM0;
         break;
         }          
   }
@@ -221,39 +215,26 @@ __interrupt void ADC_ISR(void)
 __interrupt void TIMERA0_ISR0(void) //Flag cleared automatically
 {
   
-  		int n,r=1,fan;			// 不用unsigned  因为r 可能取负值
+  		int n,r,fan;			// 不用unsigned  因为r 可能取负值
 
 		n = idx;
-                r=1;
 		if ( n >=hsamples )
 				{
 		    n -=hsamples;
 		    r = -1;
 		    }
+		else r = 1;
+
 		if ( n >= qsamples )
 			n =hsamples-n;
-    TA0CCR1 = STD_CCR/2- r*ma*sin_tab[n];	//	必须用常数？	//  ！！！重要： 算出来的TA0CCR1不可能会小于 1 ， 这是通过ma 最大值取值上来控制
-        fan = TA0CCR1 -1;
-    if(fan<=0)
-    {
-     fan = 0;
-    }
-    TA0CCR2= fan;   
-    // TA0CCR2 = TA0CCR1>1 ? TA0CCR1-1 : 0 ;    								  //  再次控制，其实不需要了
 
-		//		TA0CCR2 = sin_tab[idx>qsamples ? hsamples-idx : idx ]*ma;			
+    TA0CCR1 = (curr_ccr>>1) - r*curr_ccr*ma*sin_tab[n];				//	必须用常数？	//  ！！！重要： 算出来的TA0CCR1不可能会小于 1 ， 这是通过ma 最大值取值上来控制
+    TA0CCR2 = TA0CCR1>1 ? TA0CCR1-1 : 0 ;    								  //  再次控制，其实不需要了
    
 	  idx +=step;	
 	  if ( idx >= samples )		// 是否到达周期
-			{
 			idx -=samples;			//  idx %=samples;
-			}
-  
-  
-  
-  
-  
-  
+ 
   
 //		unsigned int n,r,fan;
 //                
@@ -283,20 +264,5 @@ __interrupt void TIMERA0_ISR0(void) //Flag cleared automatically
 //			idx -=hsamples;			//  idx %=hsamples;   idx = idx-hsamples?
 //			}					
 }
-
-//void PWM_setUp()
-//{
-// //TA0.1 TA0.2
-//   TA0CTL |= TASSEL_2+MC_1+TACLR;//+TAIE;             //SMCLK, Up mode: Timer counts up to TAxCCR0
-//   TA0CCR0=  STD_CCR;                       
-//   
-//   TA0CCTL1 |= OUTMOD_7;//+CCIE;                      //Capture/compare interrupt enable. This bit enables the interrupt request of the corresponding CCIFG flag.
-//   TA0CCTL2 |= OUTMOD_7;//+CCIE;  
-//   TA0CCTL0 |= OUTMOD_7+CCIE;
-//   
-//   P1DIR |= BIT7+BIT6;                          
-//   P1SEL0 |= BIT7+BIT6; 
-//}
-//
 
 
