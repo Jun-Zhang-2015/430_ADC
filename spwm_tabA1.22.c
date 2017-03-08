@@ -16,11 +16,11 @@
 
 #define  MIN_SAMPLES		100														//  50Hz波形时一周期抽样256次
 #define  Multi_N				(MAX_RATE/MIN_RATE)						//  最大抽样倍数   基数为STD_CCR  
-#define  STD_CCR				1600			//	3200是一周期     UP/DOWN 模式下比较CCR最大1250/2
+#define  STD_CCR				1600													//	3200是一周期     UP/DOWN 模式下比较CCR最大3200/2
 #define  MAX_SAMPLES    (MIN_SAMPLES*Multi_N)					//  一周期最大抽样数
-#define  MAX_MA 				0.72
+#define  MAX_MA 				0.95
 
-float sin_tab[MIN_SAMPLES/4 *Multi_N+1];				//  最小频率(5Hz)时抽样数，  一个周期只需要1/4周期数据即可满足计算	
+unsigned int sin_tab[MIN_SAMPLES/4 *Multi_N+1];				//  最小频率(5Hz)时抽样数，  一个周期只需要1/4周期数据即可满足计算	
 unsigned int step=Multi_N;							// 10 缺省 50Hz 时步长【本程序算法用到】
 float ma=MAX_MA;								//  modulation index
 
@@ -33,7 +33,7 @@ unsigned int max_adc = 1023;													// 设置了初始值，在运行中进
 unsigned int max_adcv =1020;														//  电位器在adc 1021-1023 无效
 unsigned int gap_adc = (1023-0)/Multi_N;		// 102  gap = 每段间隔数值； gap_adc = (max_adc - min_adc)/10;     
 unsigned int adcvalue;																//  用于存放读进来的adc值
-unsigned int curr_ccr=STD_CCR;												//  当前 考虑了  幅度因子的 CCR基准
+unsigned int curr_ccr=STD_CCR*2;												//  当前 考虑了  幅度因子的 CCR基准
 
 
 unsigned int idx=0;											// 	下一个抽样位置索引，状态保持着 ,  idx最大值为samples/2 
@@ -134,7 +134,7 @@ int main(void)
    
 //  PWM_setUp();   // suqare wave frequency: 1M--450 ,8M--3.4K, 16M--6.9kHz 
 		PWM_setUp_upDownMode();														//  注意修改
-		ADC_setup1();
+		ADC_setup();
 
     
 //   sin_tab[]  计算，只需要四分之一周期的表格，即可算出一个周期的SIN表
@@ -145,42 +145,37 @@ int main(void)
 
     __enable_interrupt(); 
 
-     while(1)
+		while(1)
     {
      	
-          do{
-             
-            j=0;     // j若是随机值， v就会乱了
-     		for ( i=0;i<8;i++)
-     		{
-     			//ADC_startConversion(ADC_BASE, ADC_REPEATED_SINGLECHANNEL);
-		 			__delay_cycles(8000000/50);				//	延时10ms	 ; 8000000*(1/MCLK)=0.5s 
-     			    j += adcvalue;
-     		}
-     		j>>=3; 											//  除以8 取平均；
+     	do{
+     	  j=0;	
+				for ( i=0;i<8;i++)
+        	{
+     			ADC_startConversion(ADC_BASE, ADC_REPEATED_SINGLECHANNEL);
+					__delay_cycles(8000000/50);				//	延时10ms	 ; 8000000*(1/MCLK)=0.5s 
+     			j+=adcvalue;
+          }
+        j>>=3; 											//  除以8 取平均；
      				
-		 if ( abs(j-v) > 40 ) 			//动了超过40算动了 就跳出	//  旋钮没动，继续测试又没动	  
-		     break;
-                 
-             }while(1);	   //若旋钮不变则无法跳出？
+        if ( abs(j-v)>40 ) 				  //  
+           break;
+      }while(1);	   //若旋钮不变则无法跳出？
 			//  动了
-			
-               v=j;
-	if ( v < min_adc )										//  如果
+		
+    	v=j;
+			if ( v < min_adc )										//  如果
        	min_adc = v;
      	if ( v >max_adc)
        	max_adc = v;
-        gap_adc= (max_adc-min_adc)/Multi_N;
-        max_adcv = gap_adc*Multi_N;
-           
-       
-	
-                        i = v>max_adcv ? max_adcv : v;			//       高于 max_adcv 就按max_adcv 算		
+      gap_adc= (max_adc-min_adc)/Multi_N;
+      max_adcv = gap_adc*Multi_N;
+
+			i = v>max_adcv ? max_adcv : v;			//       高于 max_adcv 就按max_adcv 算		
 			ma = (MAX_MA/max_adcv)*i;									
-  
-		
+
   		i = i-min_adc;
-  		j = (i+gap_adc-1)/gap_adc;     //       i = min_adc 时 step = 0 , 需要处理
+  		j= (i+gap_adc-1)/gap_adc;     //       i = min_adc 时 step = 0 , 需要处理
   		if ( j <=0 ) 															//    剔除异常值；
   			step = 1;
   		else if( j >=Multi_N )
@@ -192,59 +187,8 @@ int main(void)
       	{
   		//  修改 TA0CCR0，好像需要加一句停止什么？？然后改比较合适，否则结果不可预测等等，USERGUIDE里曾看到，		
       	TA0CCR0 = cr;
-      	curr_ccr= cr;
+      	curr_ccr=cr;
       	}
-      
-      
-      
-      
-//     	do{
-//     		for ( i=0;i<7;i++)
-//     			{
-//     			//ADC_startConversion(ADC_BASE, ADC_REPEATED_SINGLECHANNEL);
-//		 			__delay_cycles(8000000/50);				//	延时10ms	 ; 8000000*(1/MCLK)=0.5s 
-//     			    j = adcvalue;
-//                                        j+=j;
-//     			}
-//     		j>>=3; 											//  除以8 取平均；
-//     				
-////		 if ( abs(j-v)<20 ) 				  //  
-////		 {
-////		 			continue;													//  旋钮没动，继续测试又没动
-////		  }
-//		 		break;
-//            }while(1);	   //若旋钮不变则无法跳出？
-//			//  动了
-//	do{		
-//               v=j;
-//	if ( v < min_adc )										//  如果
-//       	min_adc = v;
-//     	if ( v >max_adc)
-//       	max_adc = v;
-//        gap_adc= (max_adc-min_adc)/Multi_N;
-//        max_adcv = gap_adc*Multi_N;
-//           
-//        }while( abs(j-v) >=2);
-//	
-//                        i = v>max_adcv ? max_adcv : v;			//       高于 max_adcv 就按max_adcv 算		
-//			ma = (MAX_MA/max_adcv)*i;									
-//  
-//		
-//  		i = i-min_adc;
-//  		j= (i+gap_adc-1)/gap_adc;     //       i = min_adc 时 step = 0 , 需要处理
-//  		if ( j <=0 ) 															//    剔除异常值；
-//  			step = 1;
-//  		else if( j >=Multi_N )
-//  			step = Multi_N;
-//  		else  step = j;															
-//
-//  		i = STD_CCR*(float)gap_adc*step/(i);
-//      if ( i != curr_ccr )
-//      	{
-//  		//  修改 TA0CCR0，好像需要加一句停止什么？？然后改比较合适，否则结果不可预测等等，USERGUIDE里曾看到，		
-//      	TA0CCR0 = i;
-//      	curr_ccr=i;
-//      	}
     }
 
 }
@@ -257,8 +201,8 @@ __interrupt void ADC_ISR(void)
   {
     case ADCIV_ADCIFG:              				// conversion complete
         {      
-    	    //  adcvalue = ADCMEM0;
-           adcvalue = 1023;
+    	     //  adcvalue = ADCMEM0;
+          adcvalue = ADCMEM0;
         break;
         }          
   }
@@ -270,38 +214,29 @@ __interrupt void ADC_ISR(void)
 #pragma vector = TIMER0_A0_VECTOR
 __interrupt void TIMERA0_ISR0(void) //Flag cleared automatically
 {
-  
-  		int n,r,fan;			// 不用unsigned  因为r 可能取负值
+		static unsigned int step1,c0,c1,c2;
+		static int n,r,fan;			// 不用unsigned  因为r 可能取负值
 
+		TA0CCR1 = c1;
+		TA0CCR2 = c2;
+		
 		n = idx;
-                
 		if ( n >=hsamples )
 				{
 		    n -=hsamples;
 		    r = -1;
 		    }
-                else r=1;
-                
+		else r = 1;
+
 		if ( n >= qsamples )
 			n =hsamples-n;
-                
-   // TA0CCR1 = (STD_CCR>>1)- r*ma*sin_tab[n];	//	必须用常数？	//  ！！！重要： 算出来的TA0CCR1不可能会小于 1 ， 这是通过ma 最大值取值上来控制
-      TA0CCR1 = (curr_ccr>>1)- (float)sin_tab[n]*ma*curr_ccr*r;
-                fan = TA0CCR1 -1;
-    if(fan<=0)
-    {
-     fan = 0;
-    }
-    TA0CCR2= fan;   
-    // TA0CCR2 = TA0CCR1>1 ? TA0CCR1-1 : 0 ;    								  //  再次控制，其实不需要了
 
-		//		TA0CCR2 = sin_tab[idx>qsamples ? hsamples-idx : idx ]*ma;			
-   
-	  idx +=step;	
+    c1 = (curr_ccr>>1) - r*curr_ccr*ma*sin_tab[n];				//	必须用常数？	//  ！！！重要： 算出来的TA0CCR1不可能会小于 1 ， 这是通过ma 最大值取值上来控制
+    c2 = c1>1 ? c1-1 : 0 ;    								  //  再次控制，其实不需要了
+	  idx +=step1;	
 	  if ( idx >= samples )		// 是否到达周期
-			{
 			idx -=samples;			//  idx %=samples;
-			}
+		step1 = step;
   
 } 
 
