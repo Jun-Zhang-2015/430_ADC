@@ -18,11 +18,12 @@
 #define  Multi_N				(MAX_RATE/MIN_RATE)						//  最大抽样倍数   基数为STD_CCR  
 #define  STD_CCR				1600													//	3200是一周期     UP/DOWN 模式下比较CCR最大3200/2
 #define  MAX_SAMPLES    (MIN_SAMPLES*Multi_N)					//  一周期最大抽样数
-#define  MAX_MA 				0.9
+#define  MAX_MA 				0.95
+#define  MIN_MA         0.25													//  新增的常数
 
-float sin_tab[MIN_SAMPLES/4 *Multi_N+1];				//  最小频率(5Hz)时抽样数，  一个周期只需要1/4周期数据即可满足计算	
-unsigned int step=Multi_N;							// 10 缺省 50Hz 时步长【本程序算法用到】
-float ma=MAX_MA;								//  modulation index
+float sin_tab[MIN_SAMPLES/4 *Multi_N+1];							//  最小频率(5Hz)时抽样数，  一个周期只需要1/4周期数据即可满足计算	
+unsigned int step=Multi_N;														// 10 缺省 50Hz 时步长【本程序算法用到】
+float ma=MAX_MA;																			//  modulation index
 
 unsigned int samples =  MAX_SAMPLES;									// 缺省一周期抽样数，随着旋钮转动变化，
 unsigned int hsamples = MAX_SAMPLES>>1;								// PI--半周期抽样数
@@ -101,6 +102,7 @@ void ADC_setup1()
 int main(void)
 {
     unsigned int v = 9999,i=0,j,cr;
+    float m;
     
     WDTCTL = WDTPW | WDTHOLD;                          // Stop watchdog timer
 
@@ -148,7 +150,7 @@ int main(void)
 
 		while(1)
     {
-
+     	
      	do{
      	  j=0;	
 				for ( i=0;i<8;i++)
@@ -172,9 +174,9 @@ int main(void)
       gap_adc= (max_adc-min_adc)/Multi_N;
       max_adcv = gap_adc*Multi_N;
 
-			i = v>max_adcv ? max_adcv : v;			//       高于 max_adcv 就按max_adcv 算		
-			//ma = (0.5/max_adcv)*i+0.4;			//设置offset of ma = 0.4, it can vary from 0.4~0.9						
-                        
+			i = v>max_adcv ? max_adcv : v;									//       高于 max_adcv 就按max_adcv 算		
+			ma = ((MAX_MA-MIN_MA)/max_adcv)*i+MIN_MA;				//				@@@ 新加的 考虑了最低MA					
+
   		i = i-min_adc;
   		j= (i+gap_adc-1)/gap_adc;     //       i = min_adc 时 step = 0 , 需要处理
   		if ( j <=0 ) 															//    剔除异常值；
@@ -183,7 +185,16 @@ int main(void)
   			step = Multi_N;
   		else  step = j;															
 
-  		cr = STD_CCR*(float)gap_adc*step/(i);
+  		if ( i==0 )
+  			cr = 65535;  		
+  		else {
+  			m = (float)gap_adc*step/(i);
+  			if( m > (65535.0/STD_CCR ) )
+  			 	cr = 65535;
+  			else 
+  				cr = STD_CCR*m;
+			}
+
       if ( cr != curr_ccr )
       	{
   		//  修改 TA0CCR0，好像需要加一句停止什么？？然后改比较合适，否则结果不可预测等等，USERGUIDE里曾看到，		
@@ -202,8 +213,8 @@ __interrupt void ADC_ISR(void)
   {
     case ADCIV_ADCIFG:              				// conversion complete
         {      
-    	      // adcvalue = ADCMEM0;
-          adcvalue = 1020;
+    	       adcvalue = ADCMEM0;
+          
         break;
         }          
   }
@@ -215,8 +226,8 @@ __interrupt void ADC_ISR(void)
 #pragma vector = TIMER0_A0_VECTOR
 __interrupt void TIMERA0_ISR0(void) //Flag cleared automatically
 {
-		static unsigned int step1=0, c0=0,c1=STD_CCR,c2=STD_CCR-1;
-		static int n,r,fan;			// 不用unsigned  因为r 可能取负值
+		static unsigned int step1=0,c1=STD_CCR,c2=STD_CCR-1;
+		static int n,r;			// 不用unsigned  因为r 可能取负值
 
 		TA0CCR1 = c1;
 		TA0CCR2 = c2;
@@ -240,4 +251,4 @@ __interrupt void TIMERA0_ISR0(void) //Flag cleared automatically
 			idx -=samples;			//  idx %=samples;
 		step1 = step; 
 
-}  
+}
