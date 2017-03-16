@@ -1,6 +1,6 @@
 /**************************************************
  * 19.496 Project
- *
+ * 1.30
  * Copyright 2015 University of Strathclyde
  **************************************************/
 #include <msp430.h>
@@ -18,9 +18,9 @@
 #define  Multi_N				(MAX_RATE/MIN_RATE)						//  最大抽样倍数   基数为STD_CCR  
 #define  STD_CCR				1600													//	3200是一周期     UP/DOWN 模式下比较CCR最大3200/2
 #define  MAX_SAMPLES    (MIN_SAMPLES*Multi_N)					//  一周期最大抽样数
-#define  MAX_MA 				0.95
+#define  MAX_MA 				0.9
 
-unsigned int sin_tab[MIN_SAMPLES/4 *Multi_N+1];				//  最小频率(5Hz)时抽样数，  一个周期只需要1/4周期数据即可满足计算	
+float sin_tab[MIN_SAMPLES/4 *Multi_N+1];				//  最小频率(5Hz)时抽样数，  一个周期只需要1/4周期数据即可满足计算	
 unsigned int step=Multi_N;							// 10 缺省 50Hz 时步长【本程序算法用到】
 float ma=MAX_MA;								//  modulation index
 
@@ -33,7 +33,7 @@ unsigned int max_adc = 1023;													// 设置了初始值，在运行中进
 unsigned int max_adcv =1020;														//  电位器在adc 1021-1023 无效
 unsigned int gap_adc = (1023-0)/Multi_N;		// 102  gap = 每段间隔数值； gap_adc = (max_adc - min_adc)/10;     
 unsigned int adcvalue;																//  用于存放读进来的adc值
-unsigned int curr_ccr=STD_CCR*2;												//  当前 考虑了  幅度因子的 CCR基准
+unsigned int curr_ccr=STD_CCR;												//  当前 考虑了  幅度因子的 CCR基准
 
 
 unsigned int idx=0;											// 	下一个抽样位置索引，状态保持着 ,  idx最大值为samples/2 
@@ -126,8 +126,8 @@ int main(void)
     P8DIR |= BIT0 | BIT1;                              // set ACLK and SMCLK pin as output
     P8SEL0 |= BIT0 | BIT1;                             // set ACLK and SMCLK pin as second function    
     
-        //GPIO 8.1
-  //	GPIO_setAsPeripheralModuleFunctionInputPin(GPIO_PORT_P1, GPIO_PIN5, GPIO_PRIMARY_MODULE_FUNCTION);
+        //GPIO 1.5
+  	GPIO_setAsPeripheralModuleFunctionInputPin(GPIO_PORT_P1, GPIO_PIN5, GPIO_PRIMARY_MODULE_FUNCTION);
     
     PM5CTL0 &= ~LOCKLPM5;                              // Disable the GPIO power-on default high-impedance mode
 //  PMM_unlockLPM5();                                  // to activate previously configured port settings
@@ -141,13 +141,14 @@ int main(void)
 //	 sin(x+PI)=-sin(x);    sin(x)=sin(PI-x)
 //
 		for ( i =0;i<=MAX_SAMPLES/4;i++)
- 			sin_tab[i]= sin(i*PI*2/MAX_SAMPLES)/2;		// 
-
+ 			//sin_tab[i]= sin(i*PI*2/MAX_SAMPLES)*STD_CCR/2;		// 
+                   sin_tab[i]= sin(i*PI*2/MAX_SAMPLES)/2;	
+                  
     __enable_interrupt(); 
 
 		while(1)
     {
-     	
+
      	do{
      	  j=0;	
 				for ( i=0;i<8;i++)
@@ -172,8 +173,8 @@ int main(void)
       max_adcv = gap_adc*Multi_N;
 
 			i = v>max_adcv ? max_adcv : v;			//       高于 max_adcv 就按max_adcv 算		
-			ma = (MAX_MA/max_adcv)*i;									
-
+			//ma = (0.5/max_adcv)*i+0.4;			//设置offset of ma = 0.4, it can vary from 0.4~0.9						
+                        
   		i = i-min_adc;
   		j= (i+gap_adc-1)/gap_adc;     //       i = min_adc 时 step = 0 , 需要处理
   		if ( j <=0 ) 															//    剔除异常值；
@@ -201,8 +202,8 @@ __interrupt void ADC_ISR(void)
   {
     case ADCIV_ADCIFG:              				// conversion complete
         {      
-    	     //  adcvalue = ADCMEM0;
-          adcvalue = ADCMEM0;
+    	      // adcvalue = ADCMEM0;
+          adcvalue = 1020;
         break;
         }          
   }
@@ -214,7 +215,7 @@ __interrupt void ADC_ISR(void)
 #pragma vector = TIMER0_A0_VECTOR
 __interrupt void TIMERA0_ISR0(void) //Flag cleared automatically
 {
-		static unsigned int step1=0;c0=0,c1=STD_CCR,c2=STD_CCR-1;
+		static unsigned int step1=0, c0=0,c1=STD_CCR,c2=STD_CCR-1;
 		static int n,r,fan;			// 不用unsigned  因为r 可能取负值
 
 		TA0CCR1 = c1;
@@ -231,54 +232,12 @@ __interrupt void TIMERA0_ISR0(void) //Flag cleared automatically
 		if ( n >= qsamples )
 			n =hsamples-n;
 
-    c1 = (curr_ccr>>1) - r*curr_ccr*ma*sin_tab[n];				//	必须用常数？	//  ！！！重要： 算出来的TA0CCR1不可能会小于 1 ， 这是通过ma 最大值取值上来控制
+   // c1 = (curr_ccr>>1) - r*curr_ccr*(ma*(float)sin_tab[n]/STD_CCR);				//	必须用常数？	//  ！！！重要： 算出来的TA0CCR1不可能会小于 1 ， 这是通过ma 最大值取值上来控制
+    c1 = (curr_ccr>>1)- (float)sin_tab[n]*ma*curr_ccr*r;
     c2 = c1>1 ? c1-1 : 0 ;    								  //  再次控制，其实不需要了
 	  idx +=step1;	
 	  if ( idx >= samples )		// 是否到达周期
 			idx -=samples;			//  idx %=samples;
 		step1 = step; 
-  
-//		unsigned int n,r,fan;
-//                
-//		if ( idx <= qsamples )
-//			r = ma*sin_tab[idx];
-//		else if ( idx > qsamples && idx <=hsamples )
-//			r = ma*sin_tab[hsamples-idx];      //sin(x)=sin(PI-x)
-//    else if ( idx >hsamples && idx <= (hsamples + qsamples) )
-//    	r = -ma*sin_tab[idx-hsamples];
-//    else if ( idx > (hsamples + qsamples) )
-//        r = -ma*sin_tab[samples-idx];
-//    
-//    TA0CCR1 = STD_CCR>>1-r;        // 1/2Tc - r
-//    
-//    fan = TA0CCR1 -1;
-//    if(fan<=0)
-//    {
-//     fan = 0;
-//    }
-//    TA0CCR2= fan;   	
-//
-//		//		TA0CCR2 = sin_tab[idx>qsamples ? hsamples-idx : idx ]*ma;			
-//   
-//	  idx +=step;	
-//	  if ( idx >= hsamples )		// 是否到达半周期
-//			{
-//			idx -=hsamples;			//  idx %=hsamples;   idx = idx-hsamples?
-//			}					
-}
 
-//void PWM_setUp()
-//{
-// //TA0.1 TA0.2
-//   TA0CTL |= TASSEL_2+MC_1+TACLR;//+TAIE;             //SMCLK, Up mode: Timer counts up to TAxCCR0
-//   TA0CCR0=  STD_CCR;                       
-//   
-//   TA0CCTL1 |= OUTMOD_7;//+CCIE;                      //Capture/compare interrupt enable. This bit enables the interrupt request of the corresponding CCIFG flag.
-//   TA0CCTL2 |= OUTMOD_7;//+CCIE;  
-//   TA0CCTL0 |= OUTMOD_7+CCIE;
-//   
-//   P1DIR |= BIT7+BIT6;                          
-//   P1SEL0 |= BIT7+BIT6; 
-//}
-//
-
+}  
