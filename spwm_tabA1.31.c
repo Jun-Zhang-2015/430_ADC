@@ -175,13 +175,12 @@ int main(void)
       max_adcv = gap_adc*Multi_N;
 
 			i = v>max_adcv ? max_adcv : v;									//       高于 max_adcv 就按max_adcv 算		
+  		i = i-min_adc;
 			ma = ((MAX_MA-MIN_MA)/max_adcv)*i+MIN_MA;				//				@@@ 新加的 考虑了最低MA					
 
-  		i = i-min_adc;
+
   		j= (i+gap_adc-1)/gap_adc;     //       i = min_adc 时 step = 0 , 需要处理
-  		if ( j <=0 ) 															//    剔除异常值；
-  			step = 1;
-  		else if( j >=Multi_N )
+			if( j >=Multi_N )
   			step = Multi_N;
   		else  step = j;															
 
