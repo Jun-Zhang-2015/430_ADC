@@ -1,24 +1,24 @@
 /***********
-*		sinTab(int i);
+*sintab1.1		sinTab(int i);
 ************/
 #include <math.h>
 
 
-#define TAB_N 250                                           //¶¨ÒåÊµ¼Ê²é±íµÄµãÊı
-#define PI 3.1415926535897932384626433832795028841971       //¶¨ÒåÔ²ÖÜÂÊÖµ
-float  sin_tab[TAB_N+1];                                 //³õÊ¼»¯1/4µÄsin±í(256µã)
+#define TAB_N 250                                           //å®šä¹‰å®é™…æŸ¥è¡¨çš„ç‚¹æ•°
+#define PI 3.1415926535897932384626433832795028841971       //å®šä¹‰åœ†å‘¨ç‡å€¼
+float  sin_tab[TAB_N+1];                                 //åˆå§‹åŒ–1/4çš„sinè¡¨(256ç‚¹)
 
-//unsigned int max_sampels;												//  samples °´Éè¼Æ×î´ó³éÑùÊıÈ·¶¨µÄ£¬±ÈÈç0.5Hz·Ö±æÂÊ£¬ÔØ²¨ÆµÂÊ5K£¬
-																								//	ÔØ²¨ÖÜÆÚ²»±äÊ±£¬»ù²¨0.5HzÊ±³éÑùÊıÎª50*100/0.5=10000;
-unsigned int steps;															//  =samples/TAB_N  ,³ÌĞòÊµ¼ÊÓÃÕâ¸öÖµ¿ØÖÆ£»
+//unsigned int max_sampels;												//  samples æŒ‰è®¾è®¡æœ€å¤§æŠ½æ ·æ•°ç¡®å®šçš„ï¼Œæ¯”å¦‚0.5Hzåˆ†è¾¨ç‡ï¼Œè½½æ³¢é¢‘ç‡5Kï¼Œ
+																								//	è½½æ³¢å‘¨æœŸä¸å˜æ—¶ï¼ŒåŸºæ³¢0.5Hzæ—¶æŠ½æ ·æ•°ä¸º50*100/0.5=10000;
+unsigned int steps;															//  =samples/TAB_N  ,ç¨‹åºå®é™…ç”¨è¿™ä¸ªå€¼æ§åˆ¶ï¼›
 unsigned int total_samples;
 unsigned int h_samples;
 unsigned int q_samples;
 /*
-*				msamples:   Ò»¸öÖÜÆÚµÄ³éÑùÊı£»
+*				msamples:   ä¸€ä¸ªå‘¨æœŸçš„æŠ½æ ·æ•°ï¼›
 */
 
-void init_sinTab(unsigned int msamples)					//  msamples == 500 000  Ê±Ö§³Ö0.1hz/5k  ¹»ÁË£¬
+void init_sinTab(unsigned int msamples)					//  msamples == 500 000  æ—¶æ”¯æŒ0.1hz/5k  å¤Ÿäº†ï¼Œ
 {
 			int i;
 
@@ -29,15 +29,15 @@ void init_sinTab(unsigned int msamples)					//  msamples == 500 000  Ê±Ö§³Ö0.1hz
 			total_samples = msamples;
 			h_samples = total_samples>>1;
 			q_samples = h_samples>>1;
-			steps = q_samples/TAB_N;								//   !!!±ØĞëÕûÊı£¬ÕâÓÉ³ÌĞòÔ±ÈË¹¤¿ØÖÆ£¬ÇĞ¼Ç£»
+			steps = q_samples/TAB_N;								//   !!!å¿…é¡»æ•´æ•°ï¼Œè¿™ç”±ç¨‹åºå‘˜äººå·¥æ§åˆ¶ï¼Œåˆ‡è®°ï¼›
 }
 
 
 /*********************************************************************************
-º¯ÊıÔ­ĞÍ£ºfloat sinTab(unsigned int i)
-º¯Êı¹¦ÄÜ£º²ÉÓÃ²é±í¼ÓÏßĞÔÄ£ÄâµÄ·½·¨¼ÆËãÒ»¸öµã i µÄÕıÏÒÖµ,
-ÊäÈë²ÎÊı£ºi±ä»¯ÖµÎª ¡¾0--samples¡¿£¬samplesÓ¦Éè¼ÆÎªTAB_N*4µÄÕûÊı±¶£¬Ïàµ±ÓÚ 0 - 2*PI
-Êä³ö²ÎÊı£º¶ÔÓ¦µãµÄÕıÏÒÖµ
+å‡½æ•°åŸå‹ï¼šfloat sinTab(unsigned int i)
+å‡½æ•°åŠŸèƒ½ï¼šé‡‡ç”¨æŸ¥è¡¨åŠ çº¿æ€§æ¨¡æ‹Ÿçš„æ–¹æ³•è®¡ç®—ä¸€ä¸ªç‚¹ i çš„æ­£å¼¦å€¼,
+è¾“å…¥å‚æ•°ï¼šiå˜åŒ–å€¼ä¸º ã€0--samplesã€‘ï¼Œsamplesåº”è®¾è®¡ä¸ºTAB_N*4çš„æ•´æ•°å€ï¼Œç›¸å½“äº 0 - 2*PI
+è¾“å‡ºå‚æ•°ï¼šå¯¹åº”ç‚¹çš„æ­£å¼¦å€¼
 **********************************************************************************/
 float sinTab(unsigned int i)
 {
